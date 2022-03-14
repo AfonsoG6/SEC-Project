@@ -1,0 +1,14 @@
+syntax = "proto3";
+package pt.tecnico.sec.server.grpc;
+
+message PingRequest {
+  string input = 1;
+}
+
+message PingResponse {
+  string output = 1;
+}
+
+service ServerService {
+  rpc read(PingRequest) returns (PingResponse);
+}
