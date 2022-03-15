@@ -10,5 +10,5 @@ message PingResponse {
 }
 
 service ServerService {
-  rpc read(PingRequest) returns (PingResponse);
+  rpc ping(PingRequest) returns (PingResponse);
 }
