@@ -1,6 +1,49 @@
 syntax = "proto3";
 package pt.tecnico.sec.server.grpc;
 
+message OpenAccountRequest {
+  string key = 1;
+  int32 balance = 2;
+}
+
+message OpenAccountResponse {
+  // empty
+}
+
+message SendAmountRequest {
+  string source = 1;
+  string destination = 2;
+  int32 amount = 3;
+}
+
+message SendAmountResponse {
+  // empty
+}
+
+message CheckAccountRequest {
+  string key = 1;
+}
+
+message CheckAccountResponse {
+  // empty
+}
+
+message ReceiveAmountRequest {
+  string key = 1;
+}
+
+message ReceiveAmountResponse {
+  // empty
+}
+
+message AuditRequest {
+  string key = 1;
+}
+
+message AuditResponse {
+  // empty
+}
+
 message PingRequest {
   string input = 1;
 }
@@ -10,5 +53,10 @@ message PingResponse {
 }
 
 service ServerService {
+  rpc open_account(OpenAccountRequest) returns (OpenAccountResponse);
+  rpc send_amount(SendAmountRequest) returns (SendAmountResponse);
+  rpc check_account(CheckAccountRequest) returns (CheckAccountResponse);
+  rpc receive_amount(ReceiveAmountRequest) returns (ReceiveAmountResponse);
+  rpc audit(AuditRequest) returns (AuditResponse);
   rpc ping(PingRequest) returns (PingResponse);
 }
