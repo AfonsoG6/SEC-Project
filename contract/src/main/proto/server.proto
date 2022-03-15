@@ -44,6 +44,14 @@ message AuditResponse {
   // empty
 }
 
+message OperationRequest {
+  // empty
+}
+
+message OperationResponse {
+  int32 nonce = 1;
+}
+
 message PingRequest {
   string input = 1;
 }
@@ -58,5 +66,6 @@ service ServerService {
   rpc check_account(CheckAccountRequest) returns (CheckAccountResponse);
   rpc receive_amount(ReceiveAmountRequest) returns (ReceiveAmountResponse);
   rpc audit(AuditRequest) returns (AuditResponse);
+  rpc operation(OperationRequest) returns (OperationResponse);
   rpc ping(PingRequest) returns (PingResponse);
 }

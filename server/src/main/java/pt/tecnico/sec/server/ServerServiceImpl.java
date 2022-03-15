@@ -17,6 +17,126 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
     }
 
 	@Override
+	public void openAccount(OpenAccountRequest request, StreamObserver<OpenAccountResponse> responseObserver) {
+		if (Context.current().isCancelled()) {
+			responseObserver.onError(DEADLINE_EXCEEDED.withDescription("Timed out!").asRuntimeException());
+			return;
+		}
+		String key = request.getKey();
+		try {
+			// Build Response
+            OpenAccountResponse.Builder builder = OpenAccountResponse.newBuilder();
+            OpenAccountResponse response = builder.build();
+            // Send Response
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+		}
+		catch (Exception e) {
+
+		}
+	}
+
+	@Override
+	public void sendAmount(SendAmountRequest request, StreamObserver<SendAmountResponse> responseObserver) {
+		if (Context.current().isCancelled()) {
+			responseObserver.onError(DEADLINE_EXCEEDED.withDescription("Timed out!").asRuntimeException());
+			return;
+		}
+		String source = request.getSource();
+		String destination = request.getDestination();
+		try {
+			// Build Response
+            SendAmountResponse.Builder builder = SendAmountResponse.newBuilder();
+            SendAmountResponse response = builder.build();
+            // Send Response
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+		}
+		catch (Exception e) {
+
+		}
+	}
+
+	@Override
+	public void checkAccount(CheckAccountRequest request, StreamObserver<CheckAccountResponse> responseObserver) {
+		if (Context.current().isCancelled()) {
+			responseObserver.onError(DEADLINE_EXCEEDED.withDescription("Timed out!").asRuntimeException());
+			return;
+		}
+		String key = request.getKey();
+		try {
+			// Build Response
+            CheckAccountResponse.Builder builder = CheckAccountResponse.newBuilder();
+            CheckAccountResponse response = builder.build();
+            // Send Response
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+		}
+		catch (Exception e) {
+
+		}
+	}
+
+	@Override
+	public void receiveAmount(ReceiveAmountRequest request, StreamObserver<ReceiveAmountResponse> responseObserver) {
+		if (Context.current().isCancelled()) {
+			responseObserver.onError(DEADLINE_EXCEEDED.withDescription("Timed out!").asRuntimeException());
+			return;
+		}
+		String key = request.getKey();
+		try {
+			// Build Response
+            ReceiveAmountResponse.Builder builder = ReceiveAmountResponse.newBuilder();
+            ReceiveAmountResponse response = builder.build();
+            // Send Response
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+		}
+		catch (Exception e) {
+
+		}
+	}
+
+	@Override
+	public void audit(AuditRequest request, StreamObserver<AuditResponse> responseObserver) {
+		if (Context.current().isCancelled()) {
+			responseObserver.onError(DEADLINE_EXCEEDED.withDescription("Timed out!").asRuntimeException());
+			return;
+		}
+		String key = request.getKey();
+		try {
+			// Build Response
+            AuditResponse.Builder builder = AuditResponse.newBuilder();
+            AuditResponse response = builder.build();
+            // Send Response
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+		}
+		catch (Exception e) {
+
+		}
+	}
+
+	@Override
+	public void operation(OperationRequest request, StreamObserver<OperationResponse> responseObserver) {
+		if (Context.current().isCancelled()) {
+			responseObserver.onError(DEADLINE_EXCEEDED.withDescription("Timed out!").asRuntimeException());
+			return;
+		}
+		try {
+			// Build Response
+            OperationResponse.Builder builder = OperationResponse.newBuilder();
+            OperationResponse response = builder.build();
+            // Send Response
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+		}
+		catch (Exception e) {
+
+		}
+	}
+
+	@Override
 	public void ping(PingRequest request, StreamObserver<PingResponse> responseObserver) {
 		if (Context.current().isCancelled()) {
 			responseObserver.onError(DEADLINE_EXCEEDED.withDescription("Timed out!").asRuntimeException());
