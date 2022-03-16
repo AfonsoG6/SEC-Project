@@ -33,7 +33,8 @@ message CheckAccountRequest {
 }
 
 message CheckAccountResponse {
-  // empty
+  int32 balance = 1;
+  repeated string pendingTransfers = 2;
 }
 
 // Receive Amount Operation
@@ -55,16 +56,16 @@ message AuditRequest {
 }
 
 message AuditResponse {
-  // empty
+  repeated string history = 1;
 }
 
 // Request Nonce Operation
 
-message OperationRequest {
+message GetNonceRequest {
   bytes publicKey = 1;
 }
 
-message OperationResponse {
+message GetNonceResponse {
   bytes cypheredNonce = 1;
 }
 
@@ -86,6 +87,6 @@ service ServerService {
   rpc check_account(CheckAccountRequest) returns (CheckAccountResponse);
   rpc receive_amount(ReceiveAmountRequest) returns (ReceiveAmountResponse);
   rpc audit(AuditRequest) returns (AuditResponse);
-  rpc operation(OperationRequest) returns (OperationResponse);
+  rpc get_nonce(GetNonceRequest) returns (GetNonceResponse);
   rpc ping(PingRequest) returns (PingResponse);
 }

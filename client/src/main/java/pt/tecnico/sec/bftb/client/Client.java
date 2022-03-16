@@ -1,15 +1,25 @@
 package pt.tecnico.sec.bftb.client;
 
+import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
 import pt.tecnico.sec.bftb.server.grpc.Server.*;
 import pt.tecnico.sec.bftb.server.grpc.ServerServiceGrpc;
 
+import java.nio.ByteBuffer;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.PatternSyntaxException;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 
 public class Client {
 
@@ -52,6 +62,26 @@ public class Client {
 					if (tokens.length == 2) ping(tokens[1]);
 					else System.out.println(ERROR_NUMBER_OF_ARGUMENTS);
 					break;
+				case "open":
+					if (tokens.length == 1) openAccount();
+					else System.out.println(ERROR_NUMBER_OF_ARGUMENTS);
+					break;
+				case "send":
+					if (tokens.length == 3) sendAmount(Resources.getPublicKeyByUserId(tokens[1]), Integer.parseInt(tokens[2]));
+					else System.out.println(ERROR_NUMBER_OF_ARGUMENTS);
+					break;
+				case "check":
+					if (tokens.length == 1) checkAccount();
+					else System.out.println(ERROR_NUMBER_OF_ARGUMENTS);
+					break;
+				case "receive":
+					if (tokens.length == 2) receiveAmount();
+					else System.out.println(ERROR_NUMBER_OF_ARGUMENTS);
+					break;
+				case "audit":
+					if (tokens.length == 1) audit();
+					else System.out.println(ERROR_NUMBER_OF_ARGUMENTS);
+					break;
 				default:
 					System.out.println(UNKNOWN_COMMAND);
 					break;
@@ -63,12 +93,49 @@ public class Client {
 		return false;
 	}
 
+	private long requestNonce() {
+		try {
+			ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
+			ServerServiceGrpc.ServerServiceBlockingStub stub = ServerServiceGrpc.newBlockingStub(channel);
+			GetNonceRequest request = GetNonceRequest.newBuilder().setPublicKey(ByteString.copyFrom(userPublicKey.getEncoded())).build();
+			GetNonceResponse response = stub.getNonce(request);
+			channel.shutdown();
+			byte[] cypheredNonce = response.getCypheredNonce().toByteArray();
+			Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+			cipher.init(Cipher.DECRYPT_MODE, userPrivateKey);
+			byte[] nonceBytes = cipher.doFinal(cypheredNonce);
+			channel.shutdown();
+			return ByteBuffer.wrap(nonceBytes).getLong();
+		}
+		catch (StatusRuntimeException | IllegalBlockSizeException | BadPaddingException |
+				InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			throw new RuntimeException(e);
+		}
+	}
+
+	private byte[] getSignature(long nonce) {
+		try {
+			Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+			cipher.init(Cipher.ENCRYPT_MODE, userPrivateKey);
+			byte[] nonceBytes = ByteBuffer.allocate(Long.BYTES).putLong(nonce).array();
+			byte[] cypheredNonce = cipher.doFinal(nonceBytes);
+			return cypheredNonce;
+		}
+		catch (IllegalBlockSizeException | BadPaddingException | InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			throw new RuntimeException(e);
+		}
+	}
+
 	// Requests sign of life from the server
 	public void ping(String input) {
+		ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
 		try {
 			PingRequest.Builder builder = PingRequest.newBuilder();
 			builder.setInput(input);
-			ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
 			ServerServiceGrpc.ServerServiceBlockingStub stub = ServerServiceGrpc.newBlockingStub(channel);
 			String output = stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).ping(builder.build()).getOutput();
 			System.out.println(output);
@@ -76,20 +143,106 @@ public class Client {
 		catch (StatusRuntimeException e) {
 			System.out.println("ERROR: " + e.getStatus().getDescription());
 		}
+		channel.shutdown();
 	}
 
 	// Open Account
-	/*public void openAccount() {
+	public void openAccount() {
+		ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
 		try {
+			long nonce = requestNonce();
+			byte[] signature = getSignature(nonce);
 			OpenAccountRequest.Builder builder = OpenAccountRequest.newBuilder();
-			builder.setPublicKey(new ByteString(this.userPublicKey.getEncoded());
-			ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
+			builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
+			builder.setSignature(ByteString.copyFrom(signature));
 			ServerServiceGrpc.ServerServiceBlockingStub stub = ServerServiceGrpc.newBlockingStub(channel);
 			stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).openAccount(builder.build());
 		}
 		catch (StatusRuntimeException e) {
 			System.out.println("ERROR: " + e.getStatus().getDescription());
 		}
-	}*/
+		channel.shutdown();
+	}
+
+	public void sendAmount(PublicKey destinationPublicKey, int amount) {
+		ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
+		try {
+			long nonce = requestNonce();
+			byte[] signature = getSignature(nonce);
+			SendAmountRequest.Builder builder = SendAmountRequest.newBuilder();
+			builder.setSourceKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
+			builder.setDestinationKey(ByteString.copyFrom(destinationPublicKey.getEncoded()));
+			builder.setAmount(amount);
+			builder.setSignature(ByteString.copyFrom(signature));
+			ServerServiceGrpc.ServerServiceBlockingStub stub = ServerServiceGrpc.newBlockingStub(channel);
+			stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).sendAmount(builder.build());
+		}
+		catch (StatusRuntimeException e) {
+			System.out.println("ERROR: " + e.getStatus().getDescription());
+		}
+		channel.shutdown();
+	}
+
+	public void checkAccount() {
+		ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
+		try {
+			long nonce = requestNonce();
+			byte[] signature = getSignature(nonce);
+			CheckAccountRequest.Builder builder = CheckAccountRequest.newBuilder();
+			builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
+			builder.setSignature(ByteString.copyFrom(signature));
+			ServerServiceGrpc.ServerServiceBlockingStub stub = ServerServiceGrpc.newBlockingStub(channel);
+			CheckAccountResponse response = stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).checkAccount(builder.build());
+			System.out.println("Balance: " + response.getBalance());
+			System.out.println("Pending Transfers: ");
+			int i = 0;
+			for (String transfer : response.getPendingTransfersList()) {
+				System.out.println(i + ": " + transfer);
+				i++;
+			}
+		}
+		catch (StatusRuntimeException e) {
+			System.out.println("ERROR: " + e.getStatus().getDescription());
+		}
+		channel.shutdown();
+	}
+
+	public void receiveAmount() {
+		try {
+			long nonce = requestNonce();
+			byte[] signature = getSignature(nonce);
+			ReceiveAmountRequest.Builder builder = ReceiveAmountRequest.newBuilder();
+			builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
+			builder.setSignature(ByteString.copyFrom(signature));
+			ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
+			ServerServiceGrpc.ServerServiceBlockingStub stub = ServerServiceGrpc.newBlockingStub(channel);
+			stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).receiveAmount(builder.build());
+		}
+		catch (StatusRuntimeException e) {
+			System.out.println("ERROR: " + e.getStatus().getDescription());
+		}
+	}
+
+	public void audit() {
+		try {
+			long nonce = requestNonce();
+			byte[] signature = getSignature(nonce);
+			AuditRequest.Builder builder = AuditRequest.newBuilder();
+			builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
+			builder.setSignature(ByteString.copyFrom(signature));
+			ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
+			ServerServiceGrpc.ServerServiceBlockingStub stub = ServerServiceGrpc.newBlockingStub(channel);
+			AuditResponse response = stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).audit(builder.build());
+			System.out.println("Transaction History: ");
+			int i = 0;
+			for (String transaction : response.getHistoryList()) {
+				System.out.println(i + ": " + transaction);
+				i++;
+			}
+		}
+		catch (StatusRuntimeException e) {
+			System.out.println("ERROR: " + e.getStatus().getDescription());
+		}
+	}
 
 }

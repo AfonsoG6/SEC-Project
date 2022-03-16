@@ -13,4 +13,19 @@ public class Account {
 		this.publicKey = publicKey;
 		this.balance = INITIAL_BALANCE;
 	}
+
+	public boolean canDecrement(int value) {
+		if (value > 0 && value < balance) return true;
+		return false;
+	}
+
+	public void incrementBalance(int value) {
+		if (value > 0)
+			balance = balance + value;
+	}
+
+	public void decrementBalance(int value) {
+		if (this.canDecrement(value))
+			balance = balance - value;
+	}
 }

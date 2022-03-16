@@ -1,11 +1,14 @@
 package pt.tecnico.sec.bftb.server;
 
+import com.google.protobuf.ByteString;
 import io.grpc.Context;
 import io.grpc.stub.StreamObserver;
 import pt.tecnico.sec.bftb.server.grpc.ServerServiceGrpc;
 import pt.tecnico.sec.bftb.server.grpc.Server.*;
 
+import java.security.KeyFactory;
 import java.security.PublicKey;
+import java.security.spec.X509EncodedKeySpec;
 
 import static io.grpc.Status.DEADLINE_EXCEEDED;
 import static io.grpc.Status.INVALID_ARGUMENT;
@@ -24,9 +27,10 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			responseObserver.onError(DEADLINE_EXCEEDED.withDescription("Timed out!").asRuntimeException());
 			return;
 		}
-		String publicKey = request.getPublicKey();
-		// convert to PublicKey
 		try {
+			byte[] publicKeyBytes = request.getPublicKey().toByteArray();
+			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
+
 			// Build Response
             OpenAccountResponse.Builder builder = OpenAccountResponse.newBuilder();
             OpenAccountResponse response = builder.build();
@@ -45,10 +49,11 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			responseObserver.onError(DEADLINE_EXCEEDED.withDescription("Timed out!").asRuntimeException());
 			return;
 		}
-		String sourceKey = request.getSourceKey();
-		String destinationKey = request.getDestinationKey();
-		// convert to PublicKey
 		try {
+			byte[] sourceKeyBytes = request.getSourceKey().toByteArray();
+			PublicKey sourceKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(sourceKeyBytes));
+			byte[] destinationKeyBytes = request.getSourceKey().toByteArray();
+			PublicKey destinationKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(destinationKeyBytes));
 			// Build Response
             SendAmountResponse.Builder builder = SendAmountResponse.newBuilder();
             SendAmountResponse response = builder.build();
@@ -67,9 +72,9 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			responseObserver.onError(DEADLINE_EXCEEDED.withDescription("Timed out!").asRuntimeException());
 			return;
 		}
-		String publicKey = request.getPublicKey();
-		// convert to PublicKey
 		try {
+			byte[] publicKeyBytes = request.getPublicKey().toByteArray();
+			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
 			// Build Response
             CheckAccountResponse.Builder builder = CheckAccountResponse.newBuilder();
             CheckAccountResponse response = builder.build();
@@ -88,9 +93,9 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			responseObserver.onError(DEADLINE_EXCEEDED.withDescription("Timed out!").asRuntimeException());
 			return;
 		}
-		String publicKey = request.getPublicKey();
-		// convert to PublicKey
 		try {
+			byte[] publicKeyBytes = request.getPublicKey().toByteArray();
+			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
 			// Build Response
             ReceiveAmountResponse.Builder builder = ReceiveAmountResponse.newBuilder();
             ReceiveAmountResponse response = builder.build();
@@ -109,9 +114,9 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			responseObserver.onError(DEADLINE_EXCEEDED.withDescription("Timed out!").asRuntimeException());
 			return;
 		}
-		String publicKey = request.getPublicKey();
-		// convert to PublicKey
 		try {
+			byte[] publicKeyBytes = request.getPublicKey().toByteArray();
+			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
 			// Build Response
             AuditResponse.Builder builder = AuditResponse.newBuilder();
             AuditResponse response = builder.build();
@@ -125,17 +130,17 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 	}
 
 	@Override
-	public void operation(OperationRequest request, StreamObserver<OperationResponse> responseObserver) {
+	public void getNonce(GetNonceRequest request, StreamObserver<GetNonceResponse> responseObserver) {
 		if (Context.current().isCancelled()) {
 			responseObserver.onError(DEADLINE_EXCEEDED.withDescription("Timed out!").asRuntimeException());
 			return;
 		}
-		String publicKey = request.getPublicKey();
-		// convert to PublicKey
 		try {
+			byte[] publicKeyBytes = request.getPublicKey().toByteArray();
+			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
 			// Build Response
-            OperationResponse.Builder builder = OperationResponse.newBuilder();
-            OperationResponse response = builder.build();
+            GetNonceResponse.Builder builder = GetNonceResponse.newBuilder();
+            GetNonceResponse response = builder.build();
             // Send Response
             responseObserver.onNext(response);
             responseObserver.onCompleted();
