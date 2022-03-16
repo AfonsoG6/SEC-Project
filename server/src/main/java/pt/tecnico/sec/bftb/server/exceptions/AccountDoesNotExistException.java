@@ -1,4 +1,4 @@
-package pt.tecnico.sec.server.exceptions;
+package pt.tecnico.sec.bftb.server.exceptions;
 
 public class AccountDoesNotExistException extends Exception {
 

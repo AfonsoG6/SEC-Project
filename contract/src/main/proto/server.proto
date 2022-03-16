@@ -1,5 +1,5 @@
 syntax = "proto3";
-package pt.tecnico.sec.server.grpc;
+package pt.tecnico.sec.bftb.server.grpc;
 
 message OpenAccountRequest {
   string publicKey = 1;

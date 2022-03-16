@@ -1,4 +1,4 @@
-package pt.tecnico.sec.server;
+package pt.tecnico.sec.bftb.server;
 
 import io.grpc.Server;
 import io.grpc.ServerBuilder;

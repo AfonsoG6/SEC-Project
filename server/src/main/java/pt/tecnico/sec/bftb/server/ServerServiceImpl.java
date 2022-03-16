@@ -1,9 +1,9 @@
-package pt.tecnico.sec.server;
+package pt.tecnico.sec.bftb.server;
 
 import io.grpc.Context;
 import io.grpc.stub.StreamObserver;
-import pt.tecnico.sec.server.grpc.ServerServiceGrpc;
-import pt.tecnico.sec.server.grpc.Server.*;
+import pt.tecnico.sec.bftb.server.grpc.ServerServiceGrpc;
+import pt.tecnico.sec.bftb.server.grpc.Server.*;
 
 import java.security.PublicKey;
 

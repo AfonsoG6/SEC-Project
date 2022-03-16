@@ -1,7 +1,7 @@
-package pt.tecnico.sec.server;
+package pt.tecnico.sec.bftb.server;
 
-import pt.tecnico.sec.server.exceptions.AccountDoesNotExistException;
-import pt.tecnico.sec.server.exceptions.BalanceTooLowException;
+import pt.tecnico.sec.bftb.server.exceptions.AccountDoesNotExistException;
+import pt.tecnico.sec.bftb.server.exceptions.BalanceTooLowException;
 
 import java.security.PublicKey;
 import java.util.concurrent.ConcurrentHashMap;
