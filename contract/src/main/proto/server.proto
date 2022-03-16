@@ -2,7 +2,7 @@ syntax = "proto3";
 package pt.tecnico.sec.server.grpc;
 
 message OpenAccountRequest {
-  string key = 1;
+  string publicKey = 1;
   int32 balance = 2;
 }
 
@@ -11,8 +11,8 @@ message OpenAccountResponse {
 }
 
 message SendAmountRequest {
-  string source = 1;
-  string destination = 2;
+  string sourceKey = 1;
+  string destinationKey = 2;
   int32 amount = 3;
 }
 
@@ -21,7 +21,7 @@ message SendAmountResponse {
 }
 
 message CheckAccountRequest {
-  string key = 1;
+  string publicKey = 1;
 }
 
 message CheckAccountResponse {
@@ -29,7 +29,7 @@ message CheckAccountResponse {
 }
 
 message ReceiveAmountRequest {
-  string key = 1;
+  string publicKey = 1;
 }
 
 message ReceiveAmountResponse {
@@ -37,7 +37,7 @@ message ReceiveAmountResponse {
 }
 
 message AuditRequest {
-  string key = 1;
+  string publicKey = 1;
 }
 
 message AuditResponse {
@@ -45,7 +45,7 @@ message AuditResponse {
 }
 
 message OperationRequest {
-  // empty
+  string publicKey = 1;
 }
 
 message OperationResponse {

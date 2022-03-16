@@ -5,6 +5,8 @@ import io.grpc.stub.StreamObserver;
 import pt.tecnico.sec.server.grpc.ServerServiceGrpc;
 import pt.tecnico.sec.server.grpc.Server.*;
 
+import java.security.PublicKey;
+
 import static io.grpc.Status.DEADLINE_EXCEEDED;
 import static io.grpc.Status.INVALID_ARGUMENT;
 
@@ -22,7 +24,8 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			responseObserver.onError(DEADLINE_EXCEEDED.withDescription("Timed out!").asRuntimeException());
 			return;
 		}
-		String key = request.getKey();
+		String publicKey = request.getPublicKey();
+		// convert to PublicKey
 		try {
 			// Build Response
             OpenAccountResponse.Builder builder = OpenAccountResponse.newBuilder();
@@ -42,8 +45,9 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			responseObserver.onError(DEADLINE_EXCEEDED.withDescription("Timed out!").asRuntimeException());
 			return;
 		}
-		String source = request.getSource();
-		String destination = request.getDestination();
+		String sourceKey = request.getSourceKey();
+		String destinationKey = request.getDestinationKey();
+		// convert to PublicKey
 		try {
 			// Build Response
             SendAmountResponse.Builder builder = SendAmountResponse.newBuilder();
@@ -63,7 +67,8 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			responseObserver.onError(DEADLINE_EXCEEDED.withDescription("Timed out!").asRuntimeException());
 			return;
 		}
-		String key = request.getKey();
+		String publicKey = request.getPublicKey();
+		// convert to PublicKey
 		try {
 			// Build Response
             CheckAccountResponse.Builder builder = CheckAccountResponse.newBuilder();
@@ -83,7 +88,8 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			responseObserver.onError(DEADLINE_EXCEEDED.withDescription("Timed out!").asRuntimeException());
 			return;
 		}
-		String key = request.getKey();
+		String publicKey = request.getPublicKey();
+		// convert to PublicKey
 		try {
 			// Build Response
             ReceiveAmountResponse.Builder builder = ReceiveAmountResponse.newBuilder();
@@ -103,7 +109,8 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			responseObserver.onError(DEADLINE_EXCEEDED.withDescription("Timed out!").asRuntimeException());
 			return;
 		}
-		String key = request.getKey();
+		String publicKey = request.getPublicKey();
+		// convert to PublicKey
 		try {
 			// Build Response
             AuditResponse.Builder builder = AuditResponse.newBuilder();
@@ -123,6 +130,8 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			responseObserver.onError(DEADLINE_EXCEEDED.withDescription("Timed out!").asRuntimeException());
 			return;
 		}
+		String publicKey = request.getPublicKey();
+		// convert to PublicKey
 		try {
 			// Build Response
             OperationResponse.Builder builder = OperationResponse.newBuilder();

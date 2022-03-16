@@ -1,28 +1,30 @@
 package pt.tecnico.sec.server;
 
 import pt.tecnico.sec.server.exceptions.AccountDoesNotExistException;
+import pt.tecnico.sec.server.exceptions.BalanceTooLowException;
 
 import java.security.PublicKey;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Server {
-    private final ConcurrentHashMap<String, Account> accounts;
+    private final ConcurrentHashMap<PublicKey, Account> accounts;
 
     public Server() {
         accounts = new ConcurrentHashMap<>();
     }
 
-    public Account findAccount(String name) {
-        return accounts.get(name);
+    public Account findAccount(PublicKey publicKey) {
+        return accounts.get(publicKey);
     }
 
-    public Account getAccount(String name) throws AccountDoesNotExistException {
-        Account account = findAccount(name);
+    public Account getAccount(PublicKey publicKey) throws AccountDoesNotExistException {
+        Account account = findAccount(publicKey);
         if (account == null) throw new AccountDoesNotExistException();
         else return account;
     }
 
-    public void createAccount(String name, PublicKey publicKey) {
-        accounts.putIfAbsent(name, new Account(name, publicKey));
+    public void createAccount(PublicKey publicKey, int balance) throws BalanceTooLowException {
+        if (balance < 0) throw new BalanceTooLowException();
+        accounts.putIfAbsent(publicKey, new Account(publicKey, balance));
     }
 }
