@@ -28,18 +28,18 @@ public class Server {
         accounts.putIfAbsent(publicKey, new Account(publicKey));
     }
 
-    public void incrementBalance(PublicKey publicKey, int value) throws AccountDoesNotExistException, AmountTooLowException {
-        if (value <= 0) throw new AmountTooLowException();
+    public void incrementBalance(PublicKey publicKey, int amount) throws AccountDoesNotExistException, AmountTooLowException {
+        if (amount <= 0) throw new AmountTooLowException();
         Account account = findAccount(publicKey);
         if (account == null) throw new AccountDoesNotExistException();
-        account.incrementBalance(value);
+        account.incrementBalance(amount);
     }
 
-    public void decrementBalance(PublicKey publicKey, int value) throws AccountDoesNotExistException, BalanceTooLowException, AmountTooLowException {
-        if (value <= 0) throw new AmountTooLowException();
+    public void decrementBalance(PublicKey publicKey, int amount) throws AccountDoesNotExistException, BalanceTooLowException, AmountTooLowException {
+        if (amount <= 0) throw new AmountTooLowException();
         Account account = findAccount(publicKey);
         if (account == null) throw new AccountDoesNotExistException();
-        if (!account.canDecrement(value)) throw new BalanceTooLowException();
-        account.decrementBalance(value);
+        if (!account.canDecrement(amount)) throw new BalanceTooLowException();
+        account.decrementBalance(amount);
     }
 }

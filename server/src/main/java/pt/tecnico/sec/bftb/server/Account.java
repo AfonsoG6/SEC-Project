@@ -1,6 +1,7 @@
 package pt.tecnico.sec.bftb.server;
 
 import java.security.PublicKey;
+import java.util.ArrayList;
 
 public class Account {
 
@@ -8,24 +9,28 @@ public class Account {
 
 	private PublicKey publicKey;
 	private int balance;
+	private final ArrayList<Transaction> pending;
+	private final ArrayList<Transaction> history;
 
 	public Account(PublicKey publicKey) {
 		this.publicKey = publicKey;
 		this.balance = INITIAL_BALANCE;
+		this.pending = new ArrayList<>();
+		this.history = new ArrayList<>();
 	}
 
-	public boolean canDecrement(int value) {
-		if (value > 0 && value < balance) return true;
+	public boolean canDecrement(int amount) {
+		if (amount > 0 && amount < balance) return true;
 		return false;
 	}
 
-	public void incrementBalance(int value) {
-		if (value > 0)
-			balance = balance + value;
+	public void incrementBalance(int amount) {
+		if (amount > 0)
+			balance = balance + amount;
 	}
 
-	public void decrementBalance(int value) {
-		if (this.canDecrement(value))
-			balance = balance - value;
+	public void decrementBalance(int amount) {
+		if (this.canDecrement(amount))
+			balance = balance - amount;
 	}
 }
