@@ -1,56 +1,74 @@
 syntax = "proto3";
 package pt.tecnico.sec.bftb.server.grpc;
 
+// Open Account Operation
+
 message OpenAccountRequest {
-  string publicKey = 1;
-  int32 balance = 2;
+  bytes publicKey = 1;
+  bytes signature = 2;
 }
 
 message OpenAccountResponse {
   // empty
 }
 
+// Send Amount Operation
+
 message SendAmountRequest {
-  string sourceKey = 1;
-  string destinationKey = 2;
+  bytes sourceKey = 1;
+  bytes destinationKey = 2;
   int32 amount = 3;
+  bytes signature = 4;
 }
 
 message SendAmountResponse {
   // empty
 }
 
+// Check Account Operation
+
 message CheckAccountRequest {
-  string publicKey = 1;
+  bytes publicKey = 1;
+  bytes signature = 2;
 }
 
 message CheckAccountResponse {
   // empty
 }
 
+// Receive Amount Operation
+
 message ReceiveAmountRequest {
-  string publicKey = 1;
+  bytes publicKey = 1;
+  bytes signature = 2;
 }
 
 message ReceiveAmountResponse {
   // empty
 }
 
+// Audit Operation
+
 message AuditRequest {
-  string publicKey = 1;
+  bytes publicKey = 1;
+  bytes signature = 2;
 }
 
 message AuditResponse {
   // empty
 }
 
+// Request Nonce Operation
+
 message OperationRequest {
-  string publicKey = 1;
+  bytes publicKey = 1;
 }
 
 message OperationResponse {
-  int32 nonce = 1;
+  bytes cypheredNonce = 1;
 }
+
+// Ping Operation
 
 message PingRequest {
   string input = 1;
@@ -59,6 +77,8 @@ message PingRequest {
 message PingResponse {
   string output = 1;
 }
+
+// Service
 
 service ServerService {
   rpc open_account(OpenAccountRequest) returns (OpenAccountResponse);

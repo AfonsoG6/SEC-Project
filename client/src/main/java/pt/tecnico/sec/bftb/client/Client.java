@@ -78,4 +78,18 @@ public class Client {
 		}
 	}
 
+	// Open Account
+	/*public void openAccount() {
+		try {
+			OpenAccountRequest.Builder builder = OpenAccountRequest.newBuilder();
+			builder.setPublicKey(new ByteString(this.userPublicKey.getEncoded());
+			ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
+			ServerServiceGrpc.ServerServiceBlockingStub stub = ServerServiceGrpc.newBlockingStub(channel);
+			stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).openAccount(builder.build());
+		}
+		catch (StatusRuntimeException e) {
+			System.out.println("ERROR: " + e.getStatus().getDescription());
+		}
+	}*/
+
 }

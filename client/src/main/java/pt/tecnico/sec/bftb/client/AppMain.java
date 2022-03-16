@@ -3,13 +3,11 @@ package pt.tecnico.sec.bftb.client;
 import java.util.Scanner;
 
 public class AppMain {
-	public static final String HUB_PATH = "/grpc/bicloin/hub/1";
-
 	public static void main(String[] args) {
 		System.out.println(AppMain.class.getSimpleName());
 
 		// Check number of arguments
-		if (args.length != 6) {
+		if (args.length != 3) {
 			System.out.println("Invalid number of arguments received.%nUsage: app <serverHostname> <serverPort> <userID>");
 			return;
 		}

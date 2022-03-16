@@ -23,8 +23,12 @@ public class Server {
         else return account;
     }
 
-    public void createAccount(PublicKey publicKey, int balance) throws BalanceTooLowException {
-        if (balance < 0) throw new BalanceTooLowException();
-        accounts.putIfAbsent(publicKey, new Account(publicKey, balance));
+    public void createAccount(PublicKey publicKey) {
+        accounts.putIfAbsent(publicKey, new Account(publicKey));
+    }
+
+    public void addBalance(PublicKey publicKey, int balance) throws AccountDoesNotExistException, BalanceTooLowException {
+        Account account = findAccount(publicKey);
+        if (account == null) throw new AccountDoesNotExistException();
     }
 }
