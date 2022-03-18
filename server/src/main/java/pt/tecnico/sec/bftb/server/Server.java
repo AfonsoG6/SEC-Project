@@ -24,10 +24,27 @@ public class Server {
         else return account;
     }
 
-    public void createAccount(PublicKey publicKey) {
+    public void openAccount(PublicKey publicKey) {
         accounts.putIfAbsent(publicKey, new Account(publicKey));
     }
 
+    // Check Account (part 1):
+
+    public int getBalance(PublicKey publicKey) throws AccountDoesNotExistException {
+        Account account = findAccount(publicKey);
+        if (account == null) throw new AccountDoesNotExistException();
+        return account.getBalance();
+    }
+
+    // Check Account (part 2):
+
+    public String getPendingTransfers(PublicKey publicKey) throws AccountDoesNotExistException {
+        Account account = findAccount(publicKey);
+        if (account == null) throw new AccountDoesNotExistException();
+        return account.getPendingTransfers();
+    }
+
+    // Remove later:
     public void incrementBalance(PublicKey publicKey, int amount) throws AccountDoesNotExistException, AmountTooLowException {
         if (amount <= 0) throw new AmountTooLowException();
         Account account = findAccount(publicKey);
@@ -35,11 +52,46 @@ public class Server {
         account.incrementBalance(amount);
     }
 
+    // Remove later:
     public void decrementBalance(PublicKey publicKey, int amount) throws AccountDoesNotExistException, BalanceTooLowException, AmountTooLowException {
         if (amount <= 0) throw new AmountTooLowException();
         Account account = findAccount(publicKey);
         if (account == null) throw new AccountDoesNotExistException();
         if (!account.canDecrement(amount)) throw new BalanceTooLowException();
         account.decrementBalance(amount);
+    }
+
+    // Send Amount:
+
+    public void sendAmount(PublicKey sourceKey, PublicKey destinationKey, int amount) throws AccountDoesNotExistException, AmountTooLowException, BalanceTooLowException {
+        if (amount <= 0) throw new AmountTooLowException();
+        Account source = findAccount(sourceKey);
+        if (source == null) throw new AccountDoesNotExistException();
+        Account destination = findAccount(destinationKey);
+        if (destination == null) throw new AccountDoesNotExistException();
+        if (!source.canDecrement(amount)) throw new BalanceTooLowException();
+        // Should we decrement from the source balance here?
+        // Or wait for it to be approved by the receiver and only then decrement and increment at once
+        // Second approach requires doing the source.canDecrement(amount) check again later (what is implemented for now)
+        destination.addPendingTransfer(sourceKey, amount);
+    }
+
+    // Receive Amount:
+
+    public void receiveAmount(PublicKey publicKey) throws AccountDoesNotExistException, BalanceTooLowException {
+        Account destination = findAccount(publicKey);
+        if (destination == null) throw new AccountDoesNotExistException();
+        // simply pop first pending transfer in list?
+        // TODO: maybe add an index fielrd to the .proto definition later so the user can pick which transfer based on the displayed order
+        Transfer transfer = destination.getPendingTransfer(0);
+        PublicKey sourceKey = transfer.getSourceKey();
+        Account source = findAccount(sourceKey);
+        if (source == null) throw new AccountDoesNotExistException();
+        int amount = transfer.getAmount();
+        if (!source.canDecrement(amount)) throw new BalanceTooLowException();
+        // TRANSACTION
+        source.decrementBalance(amount);
+        destination.incrementBalance(amount);
+        destination.approveTransfer(0);
     }
 }

@@ -30,7 +30,8 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 		try {
 			byte[] publicKeyBytes = request.getPublicKey().toByteArray();
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
-
+			// TODO: Verify signature
+			server.openAccount(publicKey);
 			// Build Response
             OpenAccountResponse.Builder builder = OpenAccountResponse.newBuilder();
             OpenAccountResponse response = builder.build();
@@ -54,6 +55,9 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			PublicKey sourceKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(sourceKeyBytes));
 			byte[] destinationKeyBytes = request.getSourceKey().toByteArray();
 			PublicKey destinationKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(destinationKeyBytes));
+			int amount = request.getAmount();
+			// TODO: Verify signature
+			server.sendAmount(sourceKey, destinationKey, amount);
 			// Build Response
             SendAmountResponse.Builder builder = SendAmountResponse.newBuilder();
             SendAmountResponse response = builder.build();
@@ -75,8 +79,13 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 		try {
 			byte[] publicKeyBytes = request.getPublicKey().toByteArray();
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
+			// TODO: Verify signature
+			int balance = server.getBalance(publicKey);
+			String transfers = server.getPendingTransfers(publicKey);
 			// Build Response
             CheckAccountResponse.Builder builder = CheckAccountResponse.newBuilder();
+			builder.setBalance(balance);
+			// TODO: transfers string(s?)
             CheckAccountResponse response = builder.build();
             // Send Response
             responseObserver.onNext(response);
@@ -96,6 +105,8 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 		try {
 			byte[] publicKeyBytes = request.getPublicKey().toByteArray();
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
+			// TODO: Verify signature
+			server.receiveAmount(publicKey);
 			// Build Response
             ReceiveAmountResponse.Builder builder = ReceiveAmountResponse.newBuilder();
             ReceiveAmountResponse response = builder.build();
