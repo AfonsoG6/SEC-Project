@@ -7,19 +7,17 @@ import io.grpc.StatusRuntimeException;
 import pt.tecnico.sec.bftb.server.grpc.Server.*;
 import pt.tecnico.sec.bftb.server.grpc.ServerServiceGrpc;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 import java.nio.ByteBuffer;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.spec.X509EncodedKeySpec;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.PatternSyntaxException;
-
-import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
 
 public class Client {
 
@@ -120,8 +118,7 @@ public class Client {
 			Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
 			cipher.init(Cipher.ENCRYPT_MODE, userPrivateKey);
 			byte[] nonceBytes = ByteBuffer.allocate(Long.BYTES).putLong(nonce).array();
-			byte[] cypheredNonce = cipher.doFinal(nonceBytes);
-			return cypheredNonce;
+			return cipher.doFinal(nonceBytes);
 		}
 		catch (IllegalBlockSizeException | BadPaddingException | InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException e) {
 			// TODO Auto-generated catch block
@@ -195,11 +192,7 @@ public class Client {
 			CheckAccountResponse response = stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).checkAccount(builder.build());
 			System.out.println("Balance: " + response.getBalance());
 			System.out.println("Pending Transfers: ");
-			int i = 0;
-			for (String transfer : response.getPendingTransfersList()) {
-				System.out.println(i + ": " + transfer);
-				i++;
-			}
+			System.out.println(response.getPendingTransfers());
 		}
 		catch (StatusRuntimeException e) {
 			System.out.println("ERROR: " + e.getStatus().getDescription());
@@ -234,11 +227,7 @@ public class Client {
 			ServerServiceGrpc.ServerServiceBlockingStub stub = ServerServiceGrpc.newBlockingStub(channel);
 			AuditResponse response = stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).audit(builder.build());
 			System.out.println("Transaction History: ");
-			int i = 0;
-			for (String transaction : response.getHistoryList()) {
-				System.out.println(i + ": " + transaction);
-				i++;
-			}
+			System.out.println(response.getHistory());
 		}
 		catch (StatusRuntimeException e) {
 			System.out.println("ERROR: " + e.getStatus().getDescription());

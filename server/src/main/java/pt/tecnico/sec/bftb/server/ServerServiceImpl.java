@@ -1,23 +1,27 @@
 package pt.tecnico.sec.bftb.server;
 
+import com.google.protobuf.ByteString;
 import io.grpc.Context;
 import io.grpc.stub.StreamObserver;
+import pt.tecnico.sec.bftb.server.exceptions.CypherFailedException;
 import pt.tecnico.sec.bftb.server.grpc.Server.*;
 import pt.tecnico.sec.bftb.server.grpc.ServerServiceGrpc;
 
 import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
+import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 
-import static io.grpc.Status.DEADLINE_EXCEEDED;
-import static io.grpc.Status.INVALID_ARGUMENT;
+import static io.grpc.Status.*;
 
 public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 
-	public static final String DEADLINE_EXCEEDED_DESC = "Timed out!";
+	private static final String DEADLINE_EXCEEDED_DESC = "Timed out!";
+
 	private final Server server;
 
-	public ServerServiceImpl() {
+	public ServerServiceImpl() throws NoSuchAlgorithmException {
 		this.server = new Server();
     }
 
@@ -30,7 +34,10 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 		try {
 			byte[] publicKeyBytes = request.getPublicKey().toByteArray();
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
-			// TODO: Verify signature
+			byte[] signature = request.getSignature().toByteArray();
+			if (!server.verifySignature(publicKey, signature)) {
+				responseObserver.onError(INVALID_ARGUMENT.withDescription("Invalid signature").asRuntimeException());
+			}
 			server.openAccount(publicKey);
 			// Build Response
             OpenAccountResponse.Builder builder = OpenAccountResponse.newBuilder();
@@ -56,7 +63,10 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			byte[] destinationKeyBytes = request.getSourceKey().toByteArray();
 			PublicKey destinationKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(destinationKeyBytes));
 			int amount = request.getAmount();
-			// TODO: Verify signature
+			byte[] signature = request.getSignature().toByteArray();
+			if (!server.verifySignature(sourceKey, signature)) {
+				responseObserver.onError(INVALID_ARGUMENT.withDescription("Invalid signature").asRuntimeException());
+			}
 			server.sendAmount(sourceKey, destinationKey, amount);
 			// Build Response
             SendAmountResponse.Builder builder = SendAmountResponse.newBuilder();
@@ -79,7 +89,10 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 		try {
 			byte[] publicKeyBytes = request.getPublicKey().toByteArray();
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
-			// TODO: Verify signature
+			byte[] signature = request.getSignature().toByteArray();
+			if (!server.verifySignature(publicKey, signature)) {
+				responseObserver.onError(INVALID_ARGUMENT.withDescription("Invalid signature").asRuntimeException());
+			}
 			int balance = server.getBalance(publicKey);
 			String transfers = server.getPendingTransfers(publicKey);
 			// Build Response
@@ -105,7 +118,10 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 		try {
 			byte[] publicKeyBytes = request.getPublicKey().toByteArray();
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
-			// TODO: Verify signature
+			byte[] signature = request.getSignature().toByteArray();
+			if (!server.verifySignature(publicKey, signature)) {
+				responseObserver.onError(INVALID_ARGUMENT.withDescription("Invalid signature").asRuntimeException());
+			}
 			int transferNum = request.getTransferNum();
 			server.receiveAmount(publicKey, transferNum);
 			// Build Response
@@ -129,8 +145,13 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 		try {
 			byte[] publicKeyBytes = request.getPublicKey().toByteArray();
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
+			byte[] signature = request.getSignature().toByteArray();
+			if (!server.verifySignature(publicKey, signature)) {
+				responseObserver.onError(INVALID_ARGUMENT.withDescription("Invalid signature").asRuntimeException());
+			}
 			// Build Response
             AuditResponse.Builder builder = AuditResponse.newBuilder();
+			builder.setHistory(server.getAccountHistory(publicKey));
             AuditResponse response = builder.build();
             // Send Response
             responseObserver.onNext(response);
@@ -150,15 +171,17 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 		try {
 			byte[] publicKeyBytes = request.getPublicKey().toByteArray();
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
+			byte[] nonce = server.generateNonce(publicKey);
 			// Build Response
             GetNonceResponse.Builder builder = GetNonceResponse.newBuilder();
+			builder.setCypheredNonce(ByteString.copyFrom(nonce));
             GetNonceResponse response = builder.build();
             // Send Response
             responseObserver.onNext(response);
             responseObserver.onCompleted();
 		}
-		catch (Exception e) {
-
+		catch (CypherFailedException | NoSuchAlgorithmException | InvalidKeySpecException e) {
+			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
 		}
 	}
 

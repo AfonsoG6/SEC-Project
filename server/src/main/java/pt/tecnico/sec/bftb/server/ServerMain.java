@@ -4,10 +4,11 @@ import io.grpc.Server;
 import io.grpc.ServerBuilder;
 
 import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
 
 public class ServerMain {
 
-	public static void main(String[] args) throws IOException, InterruptedException {
+	public static void main(String[] args) throws IOException, InterruptedException, NoSuchAlgorithmException {
 		System.out.println(ServerMain.class.getSimpleName());
 		
 		// receive and print arguments
