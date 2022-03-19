@@ -9,15 +9,12 @@ public class Account {
 
 	private PublicKey publicKey;
 	private int balance;
-	private long currentUsableNonce;
-	private boolean hasUsableNonce;
 	private final ArrayList<Transfer> pendingTransfers;
 	private final ArrayList<Transfer> approvedTransfers;
 
 	public Account(PublicKey publicKey){
 		this.publicKey = publicKey;
 		this.balance = INITIAL_BALANCE;
-		this.hasUsableNonce = false;
 		this.pendingTransfers = new ArrayList<>();
 		this.approvedTransfers = new ArrayList<>();
 	}
