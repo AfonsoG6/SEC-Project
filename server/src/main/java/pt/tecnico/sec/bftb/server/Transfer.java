@@ -1,6 +1,7 @@
 package pt.tecnico.sec.bftb.server;
 
 import java.security.PublicKey;
+import java.util.Base64;
 
 public class Transfer {
 
@@ -8,8 +9,11 @@ public class Transfer {
     private PublicKey destinationKey;
     private int amount;
     private boolean pending;
-    // approved transfers could also be a subclass instead of an attribute that distinguishes them
-    // TODO: needs a signature too for non repudiation
+
+    private long sourceNonce;
+    private byte[] sourceSignature;
+    private long destinationNonce;
+    private byte[] destinationSignature;
 
     public Transfer(PublicKey sourceKey, PublicKey destinationKey, int amount) {
         this.sourceKey = sourceKey;
@@ -36,7 +40,10 @@ public class Transfer {
 
     @Override
     public String toString() {
-        return "Amount: " + this.amount; // TODO: what else can we put here?
+        return ((this.pending) ? "[Pending] " : "[Approved] ")
+                + Base64.getEncoder().encodeToString(this.sourceKey.getEncoded())
+                + "--$" + this.amount + "-->"
+                + Base64.getEncoder().encodeToString(this.destinationKey.getEncoded());
     }
     
 }

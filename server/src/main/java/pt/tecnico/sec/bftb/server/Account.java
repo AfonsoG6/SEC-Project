@@ -9,7 +9,6 @@ public class Account {
 
 	private PublicKey publicKey;
 	private int balance;
-	private long nonce;
 	private final ArrayList<Transfer> pending;
 	private final ArrayList<Transfer> history;
 

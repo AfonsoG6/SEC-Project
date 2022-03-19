@@ -34,14 +34,15 @@ message CheckAccountRequest {
 
 message CheckAccountResponse {
   int32 balance = 1;
-  repeated string pendingTransfers = 2;
+  string pendingTransfers = 2;
 }
 
 // Receive Amount Operation
 
 message ReceiveAmountRequest {
   bytes publicKey = 1;
-  bytes signature = 2;
+  int32 transferNum = 2;
+  bytes signature = 3;
 }
 
 message ReceiveAmountResponse {
@@ -56,7 +57,7 @@ message AuditRequest {
 }
 
 message AuditResponse {
-  repeated string history = 1;
+  string history = 1;
 }
 
 // Request Nonce Operation

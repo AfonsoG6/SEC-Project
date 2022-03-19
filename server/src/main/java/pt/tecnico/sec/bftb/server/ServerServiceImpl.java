@@ -1,10 +1,9 @@
 package pt.tecnico.sec.bftb.server;
 
-import com.google.protobuf.ByteString;
 import io.grpc.Context;
 import io.grpc.stub.StreamObserver;
-import pt.tecnico.sec.bftb.server.grpc.ServerServiceGrpc;
 import pt.tecnico.sec.bftb.server.grpc.Server.*;
+import pt.tecnico.sec.bftb.server.grpc.ServerServiceGrpc;
 
 import java.security.KeyFactory;
 import java.security.PublicKey;
@@ -85,7 +84,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			// Build Response
             CheckAccountResponse.Builder builder = CheckAccountResponse.newBuilder();
 			builder.setBalance(balance);
-			// TODO: transfers string(s?)
+			builder.setPendingTransfers(transfers);
             CheckAccountResponse response = builder.build();
             // Send Response
             responseObserver.onNext(response);
@@ -106,7 +105,8 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			byte[] publicKeyBytes = request.getPublicKey().toByteArray();
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
 			// TODO: Verify signature
-			server.receiveAmount(publicKey);
+			int transferNum = request.getTransferNum();
+			server.receiveAmount(publicKey, transferNum);
 			// Build Response
             ReceiveAmountResponse.Builder builder = ReceiveAmountResponse.newBuilder();
             ReceiveAmountResponse response = builder.build();

@@ -1,8 +1,9 @@
 package pt.tecnico.sec.bftb.server;
 
 import pt.tecnico.sec.bftb.server.exceptions.AccountDoesNotExistException;
-import pt.tecnico.sec.bftb.server.exceptions.BalanceTooLowException;
 import pt.tecnico.sec.bftb.server.exceptions.AmountTooLowException;
+import pt.tecnico.sec.bftb.server.exceptions.BalanceTooLowException;
+import pt.tecnico.sec.bftb.server.exceptions.InvalidRequestException;
 
 import java.security.PublicKey;
 import java.util.concurrent.ConcurrentHashMap;
@@ -78,12 +79,12 @@ public class Server {
 
     // Receive Amount:
 
-    public void receiveAmount(PublicKey publicKey) throws AccountDoesNotExistException, BalanceTooLowException {
+    public void receiveAmount(PublicKey publicKey, int transferNum)
+            throws AccountDoesNotExistException, BalanceTooLowException, InvalidRequestException {
         Account destination = findAccount(publicKey);
         if (destination == null) throw new AccountDoesNotExistException();
-        // simply pop first pending transfer in list?
-        // TODO: maybe add an index fielrd to the .proto definition later so the user can pick which transfer based on the displayed order
-        Transfer transfer = destination.getPendingTransfer(0);
+        if (transferNum < 0 || transferNum >= destination.getPendingTransfers().length()) throw new InvalidRequestException();
+        Transfer transfer = destination.getPendingTransfer(transferNum);
         PublicKey sourceKey = transfer.getSourceKey();
         Account source = findAccount(sourceKey);
         if (source == null) throw new AccountDoesNotExistException();
