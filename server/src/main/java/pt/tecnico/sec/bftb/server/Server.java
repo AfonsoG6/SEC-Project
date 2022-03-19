@@ -83,7 +83,7 @@ public class Server {
             throws AccountDoesNotExistException, BalanceTooLowException, InvalidRequestException {
         Account destination = findAccount(publicKey);
         if (destination == null) throw new AccountDoesNotExistException();
-        if (transferNum < 0 || transferNum >= destination.getPendingTransfers().length()) throw new InvalidRequestException();
+        if (!destination.isPendingTransferNumValid(transferNum)) throw new InvalidRequestException("Invalid transfer number");
         Transfer transfer = destination.getPendingTransfer(transferNum);
         PublicKey sourceKey = transfer.getSourceKey();
         Account source = findAccount(sourceKey);

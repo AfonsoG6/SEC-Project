@@ -14,6 +14,7 @@ import static io.grpc.Status.INVALID_ARGUMENT;
 
 public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 
+	public static final String DEADLINE_EXCEEDED_DESC = "Timed out!";
 	private final Server server;
 
 	public ServerServiceImpl() {
@@ -23,7 +24,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 	@Override
 	public void openAccount(OpenAccountRequest request, StreamObserver<OpenAccountResponse> responseObserver) {
 		if (Context.current().isCancelled()) {
-			responseObserver.onError(DEADLINE_EXCEEDED.withDescription("Timed out!").asRuntimeException());
+			responseObserver.onError(DEADLINE_EXCEEDED.withDescription(DEADLINE_EXCEEDED_DESC).asRuntimeException());
 			return;
 		}
 		try {
@@ -46,7 +47,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 	@Override
 	public void sendAmount(SendAmountRequest request, StreamObserver<SendAmountResponse> responseObserver) {
 		if (Context.current().isCancelled()) {
-			responseObserver.onError(DEADLINE_EXCEEDED.withDescription("Timed out!").asRuntimeException());
+			responseObserver.onError(DEADLINE_EXCEEDED.withDescription(DEADLINE_EXCEEDED_DESC).asRuntimeException());
 			return;
 		}
 		try {
@@ -72,7 +73,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 	@Override
 	public void checkAccount(CheckAccountRequest request, StreamObserver<CheckAccountResponse> responseObserver) {
 		if (Context.current().isCancelled()) {
-			responseObserver.onError(DEADLINE_EXCEEDED.withDescription("Timed out!").asRuntimeException());
+			responseObserver.onError(DEADLINE_EXCEEDED.withDescription(DEADLINE_EXCEEDED_DESC).asRuntimeException());
 			return;
 		}
 		try {
@@ -98,7 +99,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 	@Override
 	public void receiveAmount(ReceiveAmountRequest request, StreamObserver<ReceiveAmountResponse> responseObserver) {
 		if (Context.current().isCancelled()) {
-			responseObserver.onError(DEADLINE_EXCEEDED.withDescription("Timed out!").asRuntimeException());
+			responseObserver.onError(DEADLINE_EXCEEDED.withDescription(DEADLINE_EXCEEDED_DESC).asRuntimeException());
 			return;
 		}
 		try {
@@ -122,7 +123,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 	@Override
 	public void audit(AuditRequest request, StreamObserver<AuditResponse> responseObserver) {
 		if (Context.current().isCancelled()) {
-			responseObserver.onError(DEADLINE_EXCEEDED.withDescription("Timed out!").asRuntimeException());
+			responseObserver.onError(DEADLINE_EXCEEDED.withDescription(DEADLINE_EXCEEDED_DESC).asRuntimeException());
 			return;
 		}
 		try {
@@ -143,7 +144,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 	@Override
 	public void getNonce(GetNonceRequest request, StreamObserver<GetNonceResponse> responseObserver) {
 		if (Context.current().isCancelled()) {
-			responseObserver.onError(DEADLINE_EXCEEDED.withDescription("Timed out!").asRuntimeException());
+			responseObserver.onError(DEADLINE_EXCEEDED.withDescription(DEADLINE_EXCEEDED_DESC).asRuntimeException());
 			return;
 		}
 		try {
@@ -164,7 +165,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 	@Override
 	public void ping(PingRequest request, StreamObserver<PingResponse> responseObserver) {
 		if (Context.current().isCancelled()) {
-			responseObserver.onError(DEADLINE_EXCEEDED.withDescription("Timed out!").asRuntimeException());
+			responseObserver.onError(DEADLINE_EXCEEDED.withDescription(DEADLINE_EXCEEDED_DESC).asRuntimeException());
 			return;
 		}
 		String input = request.getInput();

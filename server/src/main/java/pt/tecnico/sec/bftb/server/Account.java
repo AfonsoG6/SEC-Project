@@ -9,14 +9,14 @@ public class Account {
 
 	private PublicKey publicKey;
 	private int balance;
-	private final ArrayList<Transfer> pending;
-	private final ArrayList<Transfer> history;
+	private final ArrayList<Transfer> pendingTransfers;
+	private final ArrayList<Transfer> approvedTransfers;
 
 	public Account(PublicKey publicKey) {
 		this.publicKey = publicKey;
 		this.balance = INITIAL_BALANCE;
-		this.pending = new ArrayList<>();
-		this.history = new ArrayList<>();
+		this.pendingTransfers = new ArrayList<>();
+		this.approvedTransfers = new ArrayList<>();
 	}
 
 	// Returns the account's balance
@@ -49,20 +49,20 @@ public class Account {
 	// Adds a new pending transfer from a given sourceKey and amount
 
 	public void addPendingTransfer(PublicKey sourceKey, int amount) {
-		pending.add(new Transfer(sourceKey, this.publicKey, amount));
+		pendingTransfers.add(new Transfer(sourceKey, this.publicKey, amount));
 	}
 
 	// Returns a pending transfer specified by an index
 
 	public Transfer getPendingTransfer(int i) {
-		return pending.get(i);
+		return pendingTransfers.get(i);
 	}
 
 	// Returns all pending transfers concatenated into a string
 
 	public String getPendingTransfers() {
 		String pT = "";
-		for (int i = 0; i < pending.size(); i++) {
+		for (int i = 0; i < pendingTransfers.size(); i++) {
 			pT += "TRANSFER " + i + ": " + this.getPendingTransfer(i).toString() + "\n";
 		}
 		return pT;
@@ -70,8 +70,12 @@ public class Account {
 
 	public void approveTransfer(int i) {
 		Transfer transfer = this.getPendingTransfer(i);
-		pending.remove(i);
+		pendingTransfers.remove(i);
 		transfer.approve();
-		history.add(transfer);
+		approvedTransfers.add(transfer);
+	}
+
+	public boolean isPendingTransferNumValid(int num) {
+		return num >= 0 && num < this.pendingTransfers.size();
 	}
 }
