@@ -27,6 +27,12 @@ public class Client {
 	public static final String UNKNOWN_COMMAND = "ERROR: Unknown command! "+ASK_FOR_HELP;
 	public static final String HELP_STRING = "Available Commands:%n" +
 			"- ping <one word>                Check if server is responsive%n" +
+			"- open                           Open a new account%n" +
+			"- send <destination> <amount>    Send to the destination account the specified amount%n" +
+			"- receive                        Confirm the earliest pending incoming transfer%n" +
+			"- receive <transfer number>      Confirm the pending incoming transfer with the specified number%n" +
+			"- check                          Obtain the balance of the account, and the list of pending transfers%n" +
+			"- audit                          Obtain the full transaction history of the account%n" +
 			"- exit                           Exit the App%n";
 
 	private final PublicKey userPublicKey;
@@ -73,7 +79,8 @@ public class Client {
 					else System.out.println(ERROR_NUMBER_OF_ARGUMENTS);
 					break;
 				case "receive":
-					if (tokens.length == 2) receiveAmount();
+					if (tokens.length == 2) receiveAmount(0);
+					else if (tokens.length == 3) receiveAmount(Integer.parseInt(tokens[2]));
 					else System.out.println(ERROR_NUMBER_OF_ARGUMENTS);
 					break;
 				case "audit":
@@ -200,13 +207,14 @@ public class Client {
 		channel.shutdown();
 	}
 
-	public void receiveAmount() {
+	public void receiveAmount(int transferNum) {
 		try {
 			long nonce = requestNonce();
 			byte[] signature = getSignature(nonce);
 			ReceiveAmountRequest.Builder builder = ReceiveAmountRequest.newBuilder();
 			builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
 			builder.setSignature(ByteString.copyFrom(signature));
+			builder.setTransferNum(transferNum);
 			ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
 			ServerServiceGrpc.ServerServiceBlockingStub stub = ServerServiceGrpc.newBlockingStub(channel);
 			stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).receiveAmount(builder.build());
