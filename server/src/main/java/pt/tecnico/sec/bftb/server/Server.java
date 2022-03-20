@@ -90,23 +90,6 @@ public class Server {
         return account.getPendingTransfers();
     }
 
-    // Remove later:
-    public void incrementBalance(PublicKey publicKey, int amount) throws AccountDoesNotExistException, AmountTooLowException {
-        if (amount <= 0) throw new AmountTooLowException();
-        Account account = findAccount(publicKey);
-        if (account == null) throw new AccountDoesNotExistException();
-        account.incrementBalance(amount);
-    }
-
-    // Remove later:
-    public void decrementBalance(PublicKey publicKey, int amount) throws AccountDoesNotExistException, BalanceTooLowException, AmountTooLowException {
-        if (amount <= 0) throw new AmountTooLowException();
-        Account account = findAccount(publicKey);
-        if (account == null) throw new AccountDoesNotExistException();
-        if (!account.canDecrement(amount)) throw new BalanceTooLowException();
-        account.decrementBalance(amount);
-    }
-
     // Send Amount:
 
     public void sendAmount(PublicKey sourceKey, PublicKey destinationKey, int amount) throws AccountDoesNotExistException, AmountTooLowException, BalanceTooLowException {
@@ -141,8 +124,11 @@ public class Server {
         destination.approveTransfer(0);
     }
 
-    public String getAccountHistory(PublicKey publicKey) {
-        //TODO: Implement
-        return "";
+    // Audit:
+
+    public String getApprovedTransfers(PublicKey publicKey) throws AccountDoesNotExistException {
+        Account account = findAccount(publicKey);
+        if (account == null) throw new AccountDoesNotExistException();
+        return account.getApprovedTransfers();
     }
 }

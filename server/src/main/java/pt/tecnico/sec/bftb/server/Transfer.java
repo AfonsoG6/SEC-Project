@@ -8,8 +8,9 @@ public class Transfer {
     private PublicKey sourceKey;
     private PublicKey destinationKey;
     private int amount;
-    private boolean pending;
+    private boolean pending; //TODO: is this redundant since account keeps track of which ones are approved/pending anyway?
 
+    // TODO/Ask teacher about non repudiation and signatures being saved to verify past transfers
     private long sourceNonce;
     private byte[] sourceSignature;
     private long destinationNonce;

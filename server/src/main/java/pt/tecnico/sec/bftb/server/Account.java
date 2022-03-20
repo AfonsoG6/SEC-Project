@@ -77,4 +77,20 @@ public class Account {
 	public boolean isPendingTransferNumValid(int num) {
 		return num >= 0 && num < this.pendingTransfers.size();
 	}
+
+	// Returns an approved transfer specified by an index
+
+	public Transfer getApprovedTransfer(int i) {
+		return approvedTransfers.get(i);
+	}
+
+	// Returns transfer history concatenated into a string
+
+	public String getApprovedTransfers() {
+		String aT = "";
+		for (int i = 0; i < approvedTransfers.size(); i++) {
+			aT += "TRANSFER " + i + ": " + this.getApprovedTransfer(i).toString() + "\n";
+		}
+		return aT;
+	}
 }

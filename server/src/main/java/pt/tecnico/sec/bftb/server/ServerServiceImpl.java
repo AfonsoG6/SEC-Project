@@ -151,7 +151,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			}
 			// Build Response
             AuditResponse.Builder builder = AuditResponse.newBuilder();
-			builder.setHistory(server.getAccountHistory(publicKey));
+			builder.setHistory(server.getApprovedTransfers(publicKey));
             AuditResponse response = builder.build();
             // Send Response
             responseObserver.onNext(response);
