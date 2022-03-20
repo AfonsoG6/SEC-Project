@@ -28,8 +28,7 @@ public class Account {
 	// Checks if a given amount can be decremented from the account's balance
 
 	public boolean canDecrement(int amount) {
-		if (amount > 0 && amount < balance) return true;
-		return false;
+		return amount > 0 && amount < balance;
 	}
 
 	// Increments the account's balance by a given amount
