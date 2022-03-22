@@ -5,15 +5,16 @@ package pt.tecnico.sec.bftb.server.grpc;
 
 message OpenAccountRequest {
   bytes publicKey = 1;
+  bytes cypheredNonce = 2; // Challenge created by the CLIENT
 }
 
 message SignedOpenAccountRequest {
   OpenAccountRequest content = 1;
-  bytes signature = 2;
+  bytes signature = 2; // Signature created by the CLIENT
 }
 
 message OpenAccountResponse {
-  // empty
+  bytes signature = 1; // Signature created by the SERVER
 }
 
 // Send Amount Operation
@@ -22,27 +23,29 @@ message SendAmountRequest {
   bytes sourceKey = 1;
   bytes destinationKey = 2;
   int32 amount = 3;
+  bytes cypheredNonce = 4; // Challenge created by the CLIENT
 }
 
 message SignedSendAmountRequest {
   SendAmountRequest content = 1;
-  bytes signature = 2;
+  bytes signature = 2; // Signature created by the CLIENT
 }
 
 message SendAmountResponse {
-  // empty
+  bytes signature = 1; // Signature created by the SERVER
 }
 
 // Check Account Operation
 
 message CheckAccountRequest {
   bytes publicKey = 1;
-  bytes signature = 2;
+  bytes signature = 2; // Signature created by the CLIENT
+  bytes cypheredNonce = 3; // Challenge created by the CLIENT
 }
 
 message SignedCheckAccountRequest {
   CheckAccountRequest content = 1;
-  bytes signature = 2;
+  bytes signature = 2; // Signature created by the CLIENT
 }
 
 message CheckAccountResponse {
@@ -55,30 +58,33 @@ message CheckAccountResponse {
 message ReceiveAmountRequest {
   bytes publicKey = 1;
   int32 transferNum = 2;
+  bytes cypheredNonce = 3; // Challenge created by the CLIENT
 }
 
 message SignedReceiveAmountRequest {
   ReceiveAmountRequest content = 1;
-  bytes signature = 2;
+  bytes signature = 2; // Signature created by the CLIENT
 }
 
 message ReceiveAmountResponse {
-  // empty
+  bytes signature = 1; // Signature created by the SERVER
 }
 
 // Audit Operation
 
 message AuditRequest {
   bytes publicKey = 1;
+  bytes cypheredNonce = 2; // Challenge created by the CLIENT
 }
 
 message SignedAuditRequest {
   AuditRequest content = 1;
-  bytes signature = 2;
+  bytes signature = 2; // Signature created by the CLIENT
 }
 
 message AuditResponse {
   string history = 1;
+  bytes signature = 2; // Signature created by the SERVER
 }
 
 // Request Nonce Operation
@@ -88,7 +94,7 @@ message GetNonceRequest {
 }
 
 message GetNonceResponse {
-  bytes cypheredNonce = 1;
+  bytes cypheredNonce = 1; // Challenge created by the SERVER
 }
 
 // Ping Operation
