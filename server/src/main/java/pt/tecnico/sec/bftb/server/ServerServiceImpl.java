@@ -37,7 +37,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			byte[] publicKeyBytes = content.getPublicKey().toByteArray();
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
 			byte[] signature = request.getSignature().toByteArray();
-			if (!server.verifySignature(publicKey, signature)) {
+			if (!server.verifySignature(publicKey, request.toByteArray(),signature)) {
 				responseObserver.onError(INVALID_ARGUMENT.withDescription("Invalid signature").asRuntimeException());
 			}
 			server.openAccount(publicKey);
@@ -67,7 +67,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			PublicKey destinationKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(destinationKeyBytes));
 			int amount = content.getAmount();
 			byte[] signature = request.getSignature().toByteArray();
-			if (!server.verifySignature(sourceKey, signature)) {
+			if (!server.verifySignature(sourceKey, request.toByteArray(), signature)) {
 				responseObserver.onError(INVALID_ARGUMENT.withDescription("Invalid signature").asRuntimeException());
 			}
 			server.sendAmount(sourceKey, destinationKey, amount);
@@ -94,7 +94,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			byte[] publicKeyBytes = content.getPublicKey().toByteArray();
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
 			byte[] signature = request.getSignature().toByteArray();
-			if (!server.verifySignature(publicKey, signature)) {
+			if (!server.verifySignature(publicKey, request.toByteArray(),signature)) {
 				responseObserver.onError(INVALID_ARGUMENT.withDescription("Invalid signature").asRuntimeException());
 			}
 			int balance = server.getBalance(publicKey);
@@ -124,7 +124,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			byte[] publicKeyBytes = content.getPublicKey().toByteArray();
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
 			byte[] signature = request.getSignature().toByteArray();
-			if (!server.verifySignature(publicKey, signature)) {
+			if (!server.verifySignature(publicKey, request.toByteArray(),signature)) {
 				responseObserver.onError(INVALID_ARGUMENT.withDescription("Invalid signature").asRuntimeException());
 			}
 			int transferNum = content.getTransferNum();
@@ -152,7 +152,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			byte[] publicKeyBytes = content.getPublicKey().toByteArray();
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
 			byte[] signature = request.getSignature().toByteArray();
-			if (!server.verifySignature(publicKey, signature)) {
+			if (!server.verifySignature(publicKey, request.toByteArray(),signature)) {
 				responseObserver.onError(INVALID_ARGUMENT.withDescription("Invalid signature").asRuntimeException());
 			}
 			// Build Response

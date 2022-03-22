@@ -12,10 +12,7 @@ import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import java.nio.ByteBuffer;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
+import java.security.*;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.PatternSyntaxException;
 
@@ -132,14 +129,17 @@ public class Client {
 		}
 	}
 
-
-	// TODO: cipher message together with nonce
-	private byte[] getSignature(long nonce) {
+	private byte[] getSignature(long nonce, byte[] content) {
 		try {
+			// Concatenate nonce and content
+			byte[] request = ByteBuffer.allocate(Long.BYTES + content.length).putLong(nonce).put(content).array();
+			// Hash it with SHA-256
+			byte[] hash = MessageDigest.getInstance("SHA-256").digest(request);
+
+			// Encrypt CLIENT's signature
 			Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
 			cipher.init(Cipher.ENCRYPT_MODE, userPrivateKey);
-			byte[] nonceBytes = ByteBuffer.allocate(Long.BYTES).putLong(nonce).array();
-			return cipher.doFinal(nonceBytes);
+			return cipher.doFinal(hash);
 		}
 		catch (IllegalBlockSizeException | BadPaddingException | InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException e) {
 			// TODO Auto-generated catch block
@@ -169,10 +169,10 @@ public class Client {
 		ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
 		try {
 			long nonce = requestNonce();
-			byte[] signature = getSignature(nonce);
 			OpenAccountRequest.Builder builder = OpenAccountRequest.newBuilder();
 			builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
 			OpenAccountRequest content = builder.build();
+			byte[] signature = getSignature(nonce, content.toByteArray());
 			SignedOpenAccountRequest.Builder signedBuilder = SignedOpenAccountRequest.newBuilder();
 			signedBuilder.setContent(content);
 			signedBuilder.setSignature(ByteString.copyFrom(signature));
@@ -189,12 +189,12 @@ public class Client {
 		ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
 		try {
 			long nonce = requestNonce();
-			byte[] signature = getSignature(nonce);
 			SendAmountRequest.Builder builder = SendAmountRequest.newBuilder();
 			builder.setSourceKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
 			builder.setDestinationKey(ByteString.copyFrom(destinationPublicKey.getEncoded()));
 			builder.setAmount(amount);
 			SendAmountRequest content = builder.build();
+			byte[] signature = getSignature(nonce, content.toByteArray());
 			SignedSendAmountRequest.Builder signedBuilder = SignedSendAmountRequest.newBuilder();
 			signedBuilder.setContent(content);
 			signedBuilder.setSignature(ByteString.copyFrom(signature));
@@ -211,10 +211,10 @@ public class Client {
 		ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
 		try {
 			long nonce = requestNonce();
-			byte[] signature = getSignature(nonce);
 			CheckAccountRequest.Builder builder = CheckAccountRequest.newBuilder();
 			builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
 			CheckAccountRequest content = builder.build();
+			byte[] signature = getSignature(nonce, content.toByteArray());
 			SignedCheckAccountRequest.Builder signedBuilder = SignedCheckAccountRequest.newBuilder();
 			signedBuilder.setContent(content);
 			signedBuilder.setSignature(ByteString.copyFrom(signature));
@@ -233,11 +233,11 @@ public class Client {
 	public void receiveAmount(int transferNum) {
 		try {
 			long nonce = requestNonce();
-			byte[] signature = getSignature(nonce);
 			ReceiveAmountRequest.Builder builder = ReceiveAmountRequest.newBuilder();
 			builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
 			builder.setTransferNum(transferNum);
 			ReceiveAmountRequest content = builder.build();
+			byte[] signature = getSignature(nonce, content.toByteArray());
 			SignedReceiveAmountRequest.Builder signedBuilder = SignedReceiveAmountRequest.newBuilder();
 			signedBuilder.setContent(content);
 			signedBuilder.setSignature(ByteString.copyFrom(signature));
@@ -253,10 +253,10 @@ public class Client {
 	public void audit() {
 		try {
 			long nonce = requestNonce();
-			byte[] signature = getSignature(nonce);
 			AuditRequest.Builder builder = AuditRequest.newBuilder();
 			builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
 			AuditRequest content = builder.build();
+			byte[] signature = getSignature(nonce, content.toByteArray());
 			SignedAuditRequest.Builder signedBuilder = SignedAuditRequest.newBuilder();
 			signedBuilder.setContent(content);
 			signedBuilder.setSignature(ByteString.copyFrom(signature));

@@ -9,10 +9,8 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.PublicKey;
-import java.security.SecureRandom;
+import java.security.*;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
@@ -48,16 +46,21 @@ public class Server {
         return cypherNonce(publicKey, nonce);
     }
 
-    public boolean verifySignature(PublicKey publicKey, byte[] signature) throws SignatureVerificationFailedException {
+    public boolean verifySignature(PublicKey publicKey, byte[] content, byte[] signature) throws SignatureVerificationFailedException {
         try {
             if (!currentNonces.containsKey(publicKey)) throw new SignatureVerificationFailedException("Account does not have a currently usable nonce");
-            long usableNonce = currentNonces.get(publicKey);
+            // Get nonce
+            long nonce = currentNonces.get(publicKey);
+            // Concatenate nonce and content
+            byte[] request = ByteBuffer.allocate(Long.BYTES + content.length).putLong(nonce).put(content).array();
+            // Hash it with SHA-256
+            byte[] expectedHash = MessageDigest.getInstance("SHA-256").digest(request);
             // Decrypt CLIENT's signature
             Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
             cipher.init(Cipher.DECRYPT_MODE, publicKey);
-            byte[] nonceBytes = cipher.doFinal(signature);
-            long nonce = ByteBuffer.wrap(nonceBytes).getLong();
-            if (nonce == usableNonce) {
+            byte[] receivedHash = cipher.doFinal(signature);
+            // Compare the received hash with the expected one
+            if (Arrays.equals(expectedHash, receivedHash)) {
                 currentNonces.remove(publicKey);
                 return true;
             }
