@@ -27,6 +27,7 @@ public class Client {
 	public static final String UNKNOWN_COMMAND = "ERROR: Unknown command! "+ASK_FOR_HELP;
 	public static final String HELP_STRING = "Available Commands:%n" +
 			"- ping <one word>                Check if server is responsive%n" +
+			"- user <username>                Change to another user%n" +
 			"- open                           Open a new account%n" +
 			"- send <destination> <amount>    Send to the destination account the specified amount%n" +
 			"- receive                        Confirm the earliest pending incoming transfer%n" +
@@ -35,8 +36,8 @@ public class Client {
 			"- audit                          Obtain the full transaction history of the account%n" +
 			"- exit                           Exit the App%n";
 
-	private final PublicKey userPublicKey;
-	private final PrivateKey userPrivateKey;
+	private PublicKey userPublicKey;
+	private PrivateKey userPrivateKey;
 	private final String serverURI;
 
 	public Client(PublicKey userPublicKey, PrivateKey userPrivateKey, String serverURI) {
@@ -45,8 +46,9 @@ public class Client {
 		this.serverURI = serverURI;
 	}
 
-	public Client(String userId, String serverURI) {
-		this(Resources.getPublicKeyByUserId(userId), Resources.getPrivateKeyByUserId(userId), serverURI);
+	public Client(String serverURI) {
+		// Default user ID is "user", just for simplicity
+		this(Resources.getPublicKeyByUserId("user"), Resources.getPrivateKeyByUserId("user"), serverURI);
 	}
 
 	// Returns true if the App should exit
@@ -64,6 +66,10 @@ public class Client {
 					break;
 				case "ping":
 					if (tokens.length == 2) ping(tokens[1]);
+					else System.out.println(ERROR_NUMBER_OF_ARGUMENTS);
+					break;
+				case "user":
+					if (tokens.length == 2) changeUser(tokens[1]);
 					else System.out.println(ERROR_NUMBER_OF_ARGUMENTS);
 					break;
 				case "open":
@@ -96,6 +102,12 @@ public class Client {
 			System.out.println(UNKNOWN_COMMAND);
 		}
 		return false;
+	}
+
+	private void changeUser(String userId) {
+		userPrivateKey = Resources.getPrivateKeyByUserId(userId);
+		userPublicKey = Resources.getPublicKeyByUserId(userId);
+		System.out.printf("User changed to '%s'%n", userId);
 	}
 
 	private long requestNonce() {

@@ -17,7 +17,6 @@
         <maven.compiler.target>17</maven.compiler.target>
 
         <mainclass>pt.tecnico.sec.bftb.client.AppMain</mainclass>
-        <userID>Manuel</userID>
     </properties>
 
     <dependencies>
@@ -87,7 +86,6 @@
                     <arguments>
                         <argument>${server.host}</argument>
                         <argument>${server.port}</argument>
-                        <argument>${userID}</argument>
                     </arguments>
                 </configuration>
             </plugin>

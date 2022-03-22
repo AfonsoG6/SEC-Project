@@ -7,17 +7,16 @@ public class AppMain {
 		System.out.println(AppMain.class.getSimpleName());
 
 		// Check number of arguments
-		if (args.length != 3) {
+		if (args.length != 2) {
 			System.out.println("Invalid number of arguments received.%nUsage: app <serverHostname> <serverPort> <userID>");
 			return;
 		}
 		// Checks if file was redirected
 		boolean fileRed = (System.console() == null);
 
-		String userID = args[2];
 		String serverURI = args[0] + ":" + args[1];
 
-		Client client = new Client(userID, serverURI);
+		Client client = new Client(serverURI);
 		try (Scanner scanner = new Scanner(System.in)) {
 			// We don't want to print a prompt symbol if a file was redirected and there's no line left to consume
 			if (!fileRed || scanner.hasNextLine()) System.out.print("> ");

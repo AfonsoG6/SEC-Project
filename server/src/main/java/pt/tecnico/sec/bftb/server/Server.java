@@ -1,6 +1,7 @@
 package pt.tecnico.sec.bftb.server;
 
 import pt.tecnico.sec.bftb.server.exceptions.*;
+import pt.tecnico.sec.bftb.server.grpc.Server.*;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -51,6 +52,7 @@ public class Server {
         try {
             if (!currentNonces.containsKey(publicKey)) throw new SignatureVerificationFailedException("Account does not have a currently usable nonce");
             long usableNonce = currentNonces.get(publicKey);
+            // Decrypt CLIENT's signature
             Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
             cipher.init(Cipher.DECRYPT_MODE, publicKey);
             byte[] nonceBytes = cipher.doFinal(signature);
@@ -99,9 +101,6 @@ public class Server {
         Account destination = findAccount(destinationKey);
         if (destination == null) throw new AccountDoesNotExistException();
         if (!source.canDecrement(amount)) throw new BalanceTooLowException();
-        // Should we decrement from the source balance here?
-        // Or wait for it to be approved by the receiver and only then decrement and increment at once
-        // Second approach requires doing the source.canDecrement(amount) check again later (what is implemented for now)
         destination.addPendingTransfer(sourceKey, amount);
     }
 
