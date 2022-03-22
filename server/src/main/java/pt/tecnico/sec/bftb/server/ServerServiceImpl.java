@@ -49,7 +49,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
             responseObserver.onCompleted();
 		}
 		catch (Exception e) {
-
+			// TODO handle exceptions correclty
 		}
 	}
 
@@ -79,7 +79,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
             responseObserver.onCompleted();
 		}
 		catch (Exception e) {
-
+			// TODO handle exceptions correclty
 		}
 	}
 
@@ -109,7 +109,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
             responseObserver.onCompleted();
 		}
 		catch (Exception e) {
-
+			// TODO handle exceptions correclty
 		}
 	}
 
@@ -137,7 +137,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
             responseObserver.onCompleted();
 		}
 		catch (Exception e) {
-
+			// TODO handle exceptions correclty
 		}
 	}
 
@@ -164,7 +164,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
             responseObserver.onCompleted();
 		}
 		catch (Exception e) {
-
+			// TODO handle exceptions correclty
 		}
 	}
 
