@@ -5,6 +5,10 @@ package pt.tecnico.sec.bftb.server.grpc;
 
 message OpenAccountRequest {
   bytes publicKey = 1;
+}
+
+message SignedOpenAccountRequest {
+  OpenAccountRequest content = 1;
   bytes signature = 2;
 }
 
@@ -18,7 +22,11 @@ message SendAmountRequest {
   bytes sourceKey = 1;
   bytes destinationKey = 2;
   int32 amount = 3;
-  bytes signature = 4;
+}
+
+message SignedSendAmountRequest {
+  SendAmountRequest content = 1;
+  bytes signature = 2;
 }
 
 message SendAmountResponse {
@@ -32,6 +40,11 @@ message CheckAccountRequest {
   bytes signature = 2;
 }
 
+message SignedCheckAccountRequest {
+  CheckAccountRequest content = 1;
+  bytes signature = 2;
+}
+
 message CheckAccountResponse {
   int32 balance = 1;
   string pendingTransfers = 2;
@@ -42,7 +55,11 @@ message CheckAccountResponse {
 message ReceiveAmountRequest {
   bytes publicKey = 1;
   int32 transferNum = 2;
-  bytes signature = 3;
+}
+
+message SignedReceiveAmountRequest {
+  ReceiveAmountRequest content = 1;
+  bytes signature = 2;
 }
 
 message ReceiveAmountResponse {
@@ -53,6 +70,10 @@ message ReceiveAmountResponse {
 
 message AuditRequest {
   bytes publicKey = 1;
+}
+
+message SignedAuditRequest {
+  AuditRequest content = 1;
   bytes signature = 2;
 }
 
@@ -83,11 +104,11 @@ message PingResponse {
 // Service
 
 service ServerService {
-  rpc open_account(OpenAccountRequest) returns (OpenAccountResponse);
-  rpc send_amount(SendAmountRequest) returns (SendAmountResponse);
-  rpc check_account(CheckAccountRequest) returns (CheckAccountResponse);
-  rpc receive_amount(ReceiveAmountRequest) returns (ReceiveAmountResponse);
-  rpc audit(AuditRequest) returns (AuditResponse);
+  rpc open_account(SignedOpenAccountRequest) returns (OpenAccountResponse);
+  rpc send_amount(SignedSendAmountRequest) returns (SendAmountResponse);
+  rpc check_account(SignedCheckAccountRequest) returns (CheckAccountResponse);
+  rpc receive_amount(SignedReceiveAmountRequest) returns (ReceiveAmountResponse);
+  rpc audit(SignedAuditRequest) returns (AuditResponse);
   rpc get_nonce(GetNonceRequest) returns (GetNonceResponse);
   rpc ping(PingRequest) returns (PingResponse);
 }

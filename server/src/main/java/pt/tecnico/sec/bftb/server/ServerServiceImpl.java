@@ -26,13 +26,15 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
     }
 
 	@Override
-	public void openAccount(OpenAccountRequest request, StreamObserver<OpenAccountResponse> responseObserver) {
+	public void openAccount(SignedOpenAccountRequest request, StreamObserver<OpenAccountResponse> responseObserver) {
 		if (Context.current().isCancelled()) {
 			responseObserver.onError(DEADLINE_EXCEEDED.withDescription(DEADLINE_EXCEEDED_DESC).asRuntimeException());
 			return;
 		}
 		try {
-			byte[] publicKeyBytes = request.getPublicKey().toByteArray();
+
+			OpenAccountRequest content = request.getContent();
+			byte[] publicKeyBytes = content.getPublicKey().toByteArray();
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
 			byte[] signature = request.getSignature().toByteArray();
 			if (!server.verifySignature(publicKey, signature)) {
@@ -52,17 +54,18 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 	}
 
 	@Override
-	public void sendAmount(SendAmountRequest request, StreamObserver<SendAmountResponse> responseObserver) {
+	public void sendAmount(SignedSendAmountRequest request, StreamObserver<SendAmountResponse> responseObserver) {
 		if (Context.current().isCancelled()) {
 			responseObserver.onError(DEADLINE_EXCEEDED.withDescription(DEADLINE_EXCEEDED_DESC).asRuntimeException());
 			return;
 		}
 		try {
-			byte[] sourceKeyBytes = request.getSourceKey().toByteArray();
+			SendAmountRequest content = request.getContent();
+			byte[] sourceKeyBytes = content.getSourceKey().toByteArray();
 			PublicKey sourceKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(sourceKeyBytes));
-			byte[] destinationKeyBytes = request.getSourceKey().toByteArray();
+			byte[] destinationKeyBytes = content.getSourceKey().toByteArray();
 			PublicKey destinationKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(destinationKeyBytes));
-			int amount = request.getAmount();
+			int amount = content.getAmount();
 			byte[] signature = request.getSignature().toByteArray();
 			if (!server.verifySignature(sourceKey, signature)) {
 				responseObserver.onError(INVALID_ARGUMENT.withDescription("Invalid signature").asRuntimeException());
@@ -81,13 +84,14 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 	}
 
 	@Override
-	public void checkAccount(CheckAccountRequest request, StreamObserver<CheckAccountResponse> responseObserver) {
+	public void checkAccount(SignedCheckAccountRequest request, StreamObserver<CheckAccountResponse> responseObserver) {
 		if (Context.current().isCancelled()) {
 			responseObserver.onError(DEADLINE_EXCEEDED.withDescription(DEADLINE_EXCEEDED_DESC).asRuntimeException());
 			return;
 		}
 		try {
-			byte[] publicKeyBytes = request.getPublicKey().toByteArray();
+			CheckAccountRequest content = request.getContent();
+			byte[] publicKeyBytes = content.getPublicKey().toByteArray();
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
 			byte[] signature = request.getSignature().toByteArray();
 			if (!server.verifySignature(publicKey, signature)) {
@@ -110,19 +114,20 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 	}
 
 	@Override
-	public void receiveAmount(ReceiveAmountRequest request, StreamObserver<ReceiveAmountResponse> responseObserver) {
+	public void receiveAmount(SignedReceiveAmountRequest request, StreamObserver<ReceiveAmountResponse> responseObserver) {
 		if (Context.current().isCancelled()) {
 			responseObserver.onError(DEADLINE_EXCEEDED.withDescription(DEADLINE_EXCEEDED_DESC).asRuntimeException());
 			return;
 		}
 		try {
-			byte[] publicKeyBytes = request.getPublicKey().toByteArray();
+			ReceiveAmountRequest content = request.getContent();
+			byte[] publicKeyBytes = content.getPublicKey().toByteArray();
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
 			byte[] signature = request.getSignature().toByteArray();
 			if (!server.verifySignature(publicKey, signature)) {
 				responseObserver.onError(INVALID_ARGUMENT.withDescription("Invalid signature").asRuntimeException());
 			}
-			int transferNum = request.getTransferNum();
+			int transferNum = content.getTransferNum();
 			server.receiveAmount(publicKey, transferNum);
 			// Build Response
             ReceiveAmountResponse.Builder builder = ReceiveAmountResponse.newBuilder();
@@ -137,13 +142,14 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 	}
 
 	@Override
-	public void audit(AuditRequest request, StreamObserver<AuditResponse> responseObserver) {
+	public void audit(SignedAuditRequest request, StreamObserver<AuditResponse> responseObserver) {
 		if (Context.current().isCancelled()) {
 			responseObserver.onError(DEADLINE_EXCEEDED.withDescription(DEADLINE_EXCEEDED_DESC).asRuntimeException());
 			return;
 		}
 		try {
-			byte[] publicKeyBytes = request.getPublicKey().toByteArray();
+			AuditRequest content = request.getContent();
+			byte[] publicKeyBytes = content.getPublicKey().toByteArray();
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
 			byte[] signature = request.getSignature().toByteArray();
 			if (!server.verifySignature(publicKey, signature)) {

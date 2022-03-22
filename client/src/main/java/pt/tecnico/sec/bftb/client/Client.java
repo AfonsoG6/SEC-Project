@@ -120,6 +120,8 @@ public class Client {
 		}
 	}
 
+
+	// TODO: cipher message together with nonce
 	private byte[] getSignature(long nonce) {
 		try {
 			Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
@@ -158,9 +160,12 @@ public class Client {
 			byte[] signature = getSignature(nonce);
 			OpenAccountRequest.Builder builder = OpenAccountRequest.newBuilder();
 			builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
-			builder.setSignature(ByteString.copyFrom(signature));
+			OpenAccountRequest content = builder.build();
+			SignedOpenAccountRequest.Builder signedBuilder = SignedOpenAccountRequest.newBuilder();
+			signedBuilder.setContent(content);
+			signedBuilder.setSignature(ByteString.copyFrom(signature));
 			ServerServiceGrpc.ServerServiceBlockingStub stub = ServerServiceGrpc.newBlockingStub(channel);
-			stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).openAccount(builder.build());
+			stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).openAccount(signedBuilder.build());
 		}
 		catch (StatusRuntimeException e) {
 			System.out.println("ERROR: " + e.getStatus().getDescription());
@@ -177,9 +182,12 @@ public class Client {
 			builder.setSourceKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
 			builder.setDestinationKey(ByteString.copyFrom(destinationPublicKey.getEncoded()));
 			builder.setAmount(amount);
-			builder.setSignature(ByteString.copyFrom(signature));
+			SendAmountRequest content = builder.build();
+			SignedSendAmountRequest.Builder signedBuilder = SignedSendAmountRequest.newBuilder();
+			signedBuilder.setContent(content);
+			signedBuilder.setSignature(ByteString.copyFrom(signature));
 			ServerServiceGrpc.ServerServiceBlockingStub stub = ServerServiceGrpc.newBlockingStub(channel);
-			stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).sendAmount(builder.build());
+			stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).sendAmount(signedBuilder.build());
 		}
 		catch (StatusRuntimeException e) {
 			System.out.println("ERROR: " + e.getStatus().getDescription());
@@ -194,9 +202,12 @@ public class Client {
 			byte[] signature = getSignature(nonce);
 			CheckAccountRequest.Builder builder = CheckAccountRequest.newBuilder();
 			builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
-			builder.setSignature(ByteString.copyFrom(signature));
+			CheckAccountRequest content = builder.build();
+			SignedCheckAccountRequest.Builder signedBuilder = SignedCheckAccountRequest.newBuilder();
+			signedBuilder.setContent(content);
+			signedBuilder.setSignature(ByteString.copyFrom(signature));
 			ServerServiceGrpc.ServerServiceBlockingStub stub = ServerServiceGrpc.newBlockingStub(channel);
-			CheckAccountResponse response = stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).checkAccount(builder.build());
+			CheckAccountResponse response = stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).checkAccount(signedBuilder.build());
 			System.out.println("Balance: " + response.getBalance());
 			System.out.println("Pending Transfers: ");
 			System.out.println(response.getPendingTransfers());
@@ -213,11 +224,14 @@ public class Client {
 			byte[] signature = getSignature(nonce);
 			ReceiveAmountRequest.Builder builder = ReceiveAmountRequest.newBuilder();
 			builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
-			builder.setSignature(ByteString.copyFrom(signature));
 			builder.setTransferNum(transferNum);
+			ReceiveAmountRequest content = builder.build();
+			SignedReceiveAmountRequest.Builder signedBuilder = SignedReceiveAmountRequest.newBuilder();
+			signedBuilder.setContent(content);
+			signedBuilder.setSignature(ByteString.copyFrom(signature));
 			ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
 			ServerServiceGrpc.ServerServiceBlockingStub stub = ServerServiceGrpc.newBlockingStub(channel);
-			stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).receiveAmount(builder.build());
+			stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).receiveAmount(signedBuilder.build());
 		}
 		catch (StatusRuntimeException e) {
 			System.out.println("ERROR: " + e.getStatus().getDescription());
@@ -230,10 +244,13 @@ public class Client {
 			byte[] signature = getSignature(nonce);
 			AuditRequest.Builder builder = AuditRequest.newBuilder();
 			builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
-			builder.setSignature(ByteString.copyFrom(signature));
+			AuditRequest content = builder.build();
+			SignedAuditRequest.Builder signedBuilder = SignedAuditRequest.newBuilder();
+			signedBuilder.setContent(content);
+			signedBuilder.setSignature(ByteString.copyFrom(signature));
 			ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
 			ServerServiceGrpc.ServerServiceBlockingStub stub = ServerServiceGrpc.newBlockingStub(channel);
-			AuditResponse response = stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).audit(builder.build());
+			AuditResponse response = stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).audit(signedBuilder.build());
 			System.out.println("Transaction History: ");
 			System.out.println(response.getHistory());
 		}
