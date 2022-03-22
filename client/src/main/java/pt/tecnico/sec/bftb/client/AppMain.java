@@ -1,9 +1,10 @@
 package pt.tecnico.sec.bftb.client;
 
+import java.security.cert.CertificateException;
 import java.util.Scanner;
 
 public class AppMain {
-	public static void main(String[] args) {
+	public static void main(String[] args) throws CertificateException {
 		System.out.println(AppMain.class.getSimpleName());
 
 		// Check number of arguments

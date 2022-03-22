@@ -1,5 +1,6 @@
 package pt.tecnico.sec.bftb.client;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URISyntaxException;
@@ -8,6 +9,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.*;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.RSAKeyGenParameterSpec;
@@ -17,6 +21,8 @@ import java.util.Objects;
 public class Resources {
 
 	private static final String KEYPAIR_PATH = "keypairs";
+	private static final String SERVER_CERT_PATH = "servercert";
+	private static final String SERVER_CERT_FILENAME = "cert.pem";
 
 	private Resources() { /* empty */ }
 
@@ -80,5 +86,12 @@ public class Resources {
 		return Resources.class.getClassLoader().getResource(Path.of(KEYPAIR_PATH, userId).toString()) != null &&
 				Resources.class.getClassLoader().getResource(Path.of(KEYPAIR_PATH, userId, "public.key").toString()) != null &&
 				Resources.class.getClassLoader().getResource(Path.of(KEYPAIR_PATH, userId, "private.key").toString()) != null;
+	}
+
+	public static PublicKey getServerPublicKey() throws CertificateException {
+		InputStream certStream = Resources.class.getClassLoader().getResourceAsStream(Path.of(SERVER_CERT_PATH, SERVER_CERT_FILENAME).toString());
+		CertificateFactory f = CertificateFactory.getInstance("X.509");
+		X509Certificate certificate = (X509Certificate) f.generateCertificate(certStream);
+		return certificate.getPublicKey();
 	}
 }

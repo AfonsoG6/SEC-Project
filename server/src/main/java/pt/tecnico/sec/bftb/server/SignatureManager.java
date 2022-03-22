@@ -27,10 +27,10 @@ public class SignatureManager {
 		this.currentNonces = new ConcurrentHashMap<>();
 	}
 
-	private byte[] cypherNonce(PublicKey publicKey, long nonce) throws CypherFailedException {
+	public byte[] cypherNonce(PublicKey peerPublicKey, long nonce) throws CypherFailedException {
 		try {
 			Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-			cipher.init(Cipher.ENCRYPT_MODE, publicKey);
+			cipher.init(Cipher.ENCRYPT_MODE, peerPublicKey);
 			byte[] nonceBytes = ByteBuffer.allocate(Long.BYTES).putLong(nonce).array();
 			return cipher.doFinal(nonceBytes);
 		}
@@ -39,16 +39,28 @@ public class SignatureManager {
 		}
 	}
 
-	public byte[] generateNonce(PublicKey publicKey) throws CypherFailedException {
-		// Remove old nonce if it exists
-		currentNonces.remove(publicKey);
-		// Generate new nonce, store it and return it
-		long nonce = randomGenerator.nextLong();
-		currentNonces.put(publicKey, nonce);
-		return cypherNonce(publicKey, nonce);
+	public long decypherNonce(byte[] cypheredNonce) throws CypherFailedException {
+		try {
+			Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+			cipher.init(Cipher.DECRYPT_MODE, this.privateKey);
+			byte[] nonceBytes = cipher.doFinal(cypheredNonce);
+			return ByteBuffer.wrap(nonceBytes).getLong();
+		}
+		catch (IllegalBlockSizeException | BadPaddingException | InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException e) {
+			throw new CypherFailedException(e);
+		}
 	}
 
-	public boolean verifySignature(PublicKey peerPublicKey, byte[] content, byte[] signature) throws
+	public byte[] generateCypheredNonce(PublicKey peerPublicKey) throws CypherFailedException {
+		// Remove old nonce if it exists
+		currentNonces.remove(peerPublicKey);
+		// Generate new nonce, store it and return it
+		long nonce = randomGenerator.nextLong();
+		currentNonces.put(peerPublicKey, nonce);
+		return cypherNonce(peerPublicKey, nonce);
+	}
+
+	public boolean verifySignature(PublicKey peerPublicKey, byte[] signature, byte[] content) throws
 			SignatureVerificationFailedException {
 		try {
 			if (!currentNonces.containsKey(peerPublicKey)) throw new SignatureVerificationFailedException("Account does not have a currently usable nonce");
@@ -74,6 +86,11 @@ public class SignatureManager {
 		}
 	}
 
+	public boolean verifySignature(PublicKey peerPublicKey, byte[] signature) throws
+			SignatureVerificationFailedException {
+		return verifySignature(peerPublicKey, signature, new byte[0]);
+	}
+
 	public byte[] sign(long nonce, byte[] content) {
 		try {
 			// Concatenate nonce and content (which might be empty)
@@ -90,5 +107,9 @@ public class SignatureManager {
 			e.printStackTrace();
 			throw new RuntimeException(e);
 		}
+	}
+
+	public byte[] sign(long nonce) {
+		return sign(nonce, new byte[0]);
 	}
 }

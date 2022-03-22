@@ -6,11 +6,9 @@ import java.security.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Server {
-    private final SignatureManager signatureManager;
     private final ConcurrentHashMap<PublicKey, Account> accounts;
 
-    public Server() throws NoSuchAlgorithmException {
-        this.signatureManager = new SignatureManager();
+    public Server() {
         this.accounts = new ConcurrentHashMap<>();
     }
 
@@ -75,16 +73,5 @@ public class Server {
         Account account = findAccount(publicKey);
         if (account == null) throw new AccountDoesNotExistException();
         return account.getApprovedTransfers();
-    }
-
-    // Pass-through methods:
-
-    public byte[] generateNonce(PublicKey publicKey) throws CypherFailedException {
-        return signatureManager.generateNonce(publicKey);
-    }
-
-    public boolean verifySignature(PublicKey publicKey, byte[] toByteArray, byte[] signature)
-            throws SignatureVerificationFailedException {
-        return signatureManager.verifySignature(publicKey, toByteArray, signature);
     }
 }

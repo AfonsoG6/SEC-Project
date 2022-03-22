@@ -7,6 +7,7 @@ import pt.tecnico.sec.bftb.server.exceptions.CypherFailedException;
 import pt.tecnico.sec.bftb.server.grpc.Server.*;
 import pt.tecnico.sec.bftb.server.grpc.ServerServiceGrpc;
 
+import java.nio.ByteBuffer;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
@@ -19,31 +20,35 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 
 	private static final String DEADLINE_EXCEEDED_DESC = "Timed out!";
 
+	private final SignatureManager signatureManager;
 	private final Server server;
 
 	public ServerServiceImpl() throws NoSuchAlgorithmException {
+		this.signatureManager = new SignatureManager();
 		this.server = new Server();
     }
 
 	@Override
-	public void openAccount(SignedOpenAccountRequest request, StreamObserver<OpenAccountResponse> responseObserver) {
+	public void openAccount(SignedOpenAccountRequest request, StreamObserver<SignedOpenAccountResponse> responseObserver) {
 		if (Context.current().isCancelled()) {
 			responseObserver.onError(DEADLINE_EXCEEDED.withDescription(DEADLINE_EXCEEDED_DESC).asRuntimeException());
 			return;
 		}
 		try {
-
 			OpenAccountRequest content = request.getContent();
 			byte[] publicKeyBytes = content.getPublicKey().toByteArray();
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
-			byte[] signature = request.getSignature().toByteArray();
-			if (!server.verifySignature(publicKey, request.toByteArray(),signature)) {
+			long nonceToServer = signatureManager.decypherNonce(content.getCypheredNonce().toByteArray());
+			byte[] clientSignature = request.getSignature().toByteArray();
+			if (!signatureManager.verifySignature(publicKey, clientSignature, request.toByteArray())) {
 				responseObserver.onError(INVALID_ARGUMENT.withDescription("Invalid signature").asRuntimeException());
 			}
 			server.openAccount(publicKey);
 			// Build Response
-            OpenAccountResponse.Builder builder = OpenAccountResponse.newBuilder();
-            OpenAccountResponse response = builder.build();
+            SignedOpenAccountResponse.Builder signedBuilder = SignedOpenAccountResponse.newBuilder();
+			byte[] serverSignature = signatureManager.sign(nonceToServer);
+			signedBuilder.setSignature(ByteString.copyFrom(serverSignature));
+            SignedOpenAccountResponse response = signedBuilder.build();
             // Send Response
             responseObserver.onNext(response);
             responseObserver.onCompleted();
@@ -54,7 +59,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 	}
 
 	@Override
-	public void sendAmount(SignedSendAmountRequest request, StreamObserver<SendAmountResponse> responseObserver) {
+	public void sendAmount(SignedSendAmountRequest request, StreamObserver<SignedSendAmountResponse> responseObserver) {
 		if (Context.current().isCancelled()) {
 			responseObserver.onError(DEADLINE_EXCEEDED.withDescription(DEADLINE_EXCEEDED_DESC).asRuntimeException());
 			return;
@@ -66,14 +71,17 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			byte[] destinationKeyBytes = content.getSourceKey().toByteArray();
 			PublicKey destinationKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(destinationKeyBytes));
 			int amount = content.getAmount();
-			byte[] signature = request.getSignature().toByteArray();
-			if (!server.verifySignature(sourceKey, request.toByteArray(), signature)) {
+			long nonceToServer = signatureManager.decypherNonce(content.getCypheredNonce().toByteArray());
+			byte[] clientSignature = request.getSignature().toByteArray();
+			if (!signatureManager.verifySignature(sourceKey, clientSignature, request.toByteArray())) {
 				responseObserver.onError(INVALID_ARGUMENT.withDescription("Invalid signature").asRuntimeException());
 			}
 			server.sendAmount(sourceKey, destinationKey, amount);
 			// Build Response
-            SendAmountResponse.Builder builder = SendAmountResponse.newBuilder();
-            SendAmountResponse response = builder.build();
+			SignedSendAmountResponse.Builder signedBuilder = SignedSendAmountResponse.newBuilder();
+			byte[] serverSignature = signatureManager.sign(nonceToServer);
+			signedBuilder.setSignature(ByteString.copyFrom(serverSignature));
+			SignedSendAmountResponse response = signedBuilder.build();
             // Send Response
             responseObserver.onNext(response);
             responseObserver.onCompleted();
@@ -84,7 +92,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 	}
 
 	@Override
-	public void checkAccount(SignedCheckAccountRequest request, StreamObserver<CheckAccountResponse> responseObserver) {
+	public void checkAccount(SignedCheckAccountRequest request, StreamObserver<SignedCheckAccountResponse> responseObserver) {
 		if (Context.current().isCancelled()) {
 			responseObserver.onError(DEADLINE_EXCEEDED.withDescription(DEADLINE_EXCEEDED_DESC).asRuntimeException());
 			return;
@@ -93,8 +101,9 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			CheckAccountRequest content = request.getContent();
 			byte[] publicKeyBytes = content.getPublicKey().toByteArray();
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
-			byte[] signature = request.getSignature().toByteArray();
-			if (!server.verifySignature(publicKey, request.toByteArray(),signature)) {
+			long nonceToServer = signatureManager.decypherNonce(content.getCypheredNonce().toByteArray());
+			byte[] clientSignature = request.getSignature().toByteArray();
+			if (!signatureManager.verifySignature(publicKey, clientSignature, request.toByteArray())) {
 				responseObserver.onError(INVALID_ARGUMENT.withDescription("Invalid signature").asRuntimeException());
 			}
 			int balance = server.getBalance(publicKey);
@@ -103,7 +112,12 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
             CheckAccountResponse.Builder builder = CheckAccountResponse.newBuilder();
 			builder.setBalance(balance);
 			builder.setPendingTransfers(transfers);
-            CheckAccountResponse response = builder.build();
+
+			SignedCheckAccountResponse.Builder signedBuilder = SignedCheckAccountResponse.newBuilder();
+			signedBuilder.setContent(builder.build());
+			byte[] serverSignature = signatureManager.sign(nonceToServer, signedBuilder.getContent().toByteArray());
+			signedBuilder.setSignature(ByteString.copyFrom(serverSignature));
+			SignedCheckAccountResponse response = signedBuilder.build();
             // Send Response
             responseObserver.onNext(response);
             responseObserver.onCompleted();
@@ -114,7 +128,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 	}
 
 	@Override
-	public void receiveAmount(SignedReceiveAmountRequest request, StreamObserver<ReceiveAmountResponse> responseObserver) {
+	public void receiveAmount(SignedReceiveAmountRequest request, StreamObserver<SignedReceiveAmountResponse> responseObserver) {
 		if (Context.current().isCancelled()) {
 			responseObserver.onError(DEADLINE_EXCEEDED.withDescription(DEADLINE_EXCEEDED_DESC).asRuntimeException());
 			return;
@@ -123,15 +137,18 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			ReceiveAmountRequest content = request.getContent();
 			byte[] publicKeyBytes = content.getPublicKey().toByteArray();
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
-			byte[] signature = request.getSignature().toByteArray();
-			if (!server.verifySignature(publicKey, request.toByteArray(),signature)) {
+			long nonceToServer = signatureManager.decypherNonce(content.getCypheredNonce().toByteArray());
+			byte[] clientSignature = request.getSignature().toByteArray();
+			if (!signatureManager.verifySignature(publicKey, clientSignature, request.toByteArray())) {
 				responseObserver.onError(INVALID_ARGUMENT.withDescription("Invalid signature").asRuntimeException());
 			}
 			int transferNum = content.getTransferNum();
 			server.receiveAmount(publicKey, transferNum);
 			// Build Response
-            ReceiveAmountResponse.Builder builder = ReceiveAmountResponse.newBuilder();
-            ReceiveAmountResponse response = builder.build();
+            SignedReceiveAmountResponse.Builder signedBuilder = SignedReceiveAmountResponse.newBuilder();
+			byte[] serverSignature = signatureManager.sign(nonceToServer);
+			signedBuilder.setSignature(ByteString.copyFrom(serverSignature));
+            SignedReceiveAmountResponse response = signedBuilder.build();
             // Send Response
             responseObserver.onNext(response);
             responseObserver.onCompleted();
@@ -142,7 +159,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 	}
 
 	@Override
-	public void audit(SignedAuditRequest request, StreamObserver<AuditResponse> responseObserver) {
+	public void audit(SignedAuditRequest request, StreamObserver<SignedAuditResponse> responseObserver) {
 		if (Context.current().isCancelled()) {
 			responseObserver.onError(DEADLINE_EXCEEDED.withDescription(DEADLINE_EXCEEDED_DESC).asRuntimeException());
 			return;
@@ -151,14 +168,19 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			AuditRequest content = request.getContent();
 			byte[] publicKeyBytes = content.getPublicKey().toByteArray();
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
-			byte[] signature = request.getSignature().toByteArray();
-			if (!server.verifySignature(publicKey, request.toByteArray(),signature)) {
+			long nonceToServer = signatureManager.decypherNonce(content.getCypheredNonce().toByteArray());
+			byte[] clientSignature = request.getSignature().toByteArray();
+			if (!signatureManager.verifySignature(publicKey, clientSignature, request.toByteArray())) {
 				responseObserver.onError(INVALID_ARGUMENT.withDescription("Invalid signature").asRuntimeException());
 			}
 			// Build Response
             AuditResponse.Builder builder = AuditResponse.newBuilder();
 			builder.setHistory(server.getApprovedTransfers(publicKey));
-            AuditResponse response = builder.build();
+			SignedAuditResponse.Builder signedBuilder = SignedAuditResponse.newBuilder();
+			signedBuilder.setContent(builder.build());
+			byte[] serverSignature = signatureManager.sign(nonceToServer, signedBuilder.getContent().toByteArray());
+			signedBuilder.setSignature(ByteString.copyFrom(serverSignature));
+            SignedAuditResponse response = signedBuilder.build();
             // Send Response
             responseObserver.onNext(response);
             responseObserver.onCompleted();
@@ -177,7 +199,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 		try {
 			byte[] publicKeyBytes = request.getPublicKey().toByteArray();
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
-			byte[] nonce = server.generateNonce(publicKey);
+			byte[] nonce = signatureManager.generateCypheredNonce(publicKey);
 			// Build Response
             GetNonceResponse.Builder builder = GetNonceResponse.newBuilder();
 			builder.setCypheredNonce(ByteString.copyFrom(nonce));

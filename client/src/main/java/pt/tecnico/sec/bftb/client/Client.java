@@ -4,17 +4,14 @@ import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
+import pt.tecnico.sec.bftb.client.exceptions.CypherFailedException;
+import pt.tecnico.sec.bftb.client.exceptions.SignatureVerificationFailedException;
 import pt.tecnico.sec.bftb.server.grpc.Server.*;
 import pt.tecnico.sec.bftb.server.grpc.ServerServiceGrpc;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import java.nio.BufferUnderflowException;
-import java.nio.ByteBuffer;
-import java.security.*;
-import java.util.Arrays;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.cert.CertificateException;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.PatternSyntaxException;
 
@@ -22,6 +19,7 @@ public class Client {
 
 	private static final long DEADLINE_SEC = 10;    // Timeout deadline in seconds
 	public static final String ASK_FOR_HELP = "Use the command 'help' to see the available commands.";
+	public static final String ERROR_PREFIX = "ERROR: ";
 	public static final String ERROR_NUMBER_OF_ARGUMENTS = "ERROR: Invalid number of arguments! "+ASK_FOR_HELP;
 	public static final String UNKNOWN_COMMAND = "ERROR: Unknown command! "+ASK_FOR_HELP;
 	public static final String HELP_STRING = "Available Commands:%n" +
@@ -35,19 +33,23 @@ public class Client {
 			"- audit                          Obtain the full transaction history of the account%n" +
 			"- exit                           Exit the App%n";
 
+	private final ManagedChannel channel;
+	private final ServerServiceGrpc.ServerServiceBlockingStub stub;
 	private final SignatureManager signatureManager;
 	private PublicKey userPublicKey;
 	private PrivateKey userPrivateKey;
-	private final String serverURI;
+	private PublicKey serverPublicKey;
 
-	public Client(PublicKey userPublicKey, PrivateKey userPrivateKey, String serverURI) {
+	public Client(PublicKey userPublicKey, PrivateKey userPrivateKey, String serverURI) throws CertificateException {
+		this.channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
+		this.stub = ServerServiceGrpc.newBlockingStub(this.channel);
 		this.signatureManager = new SignatureManager(userPrivateKey);
 		this.userPublicKey = userPublicKey;
 		this.userPrivateKey = userPrivateKey;
-		this.serverURI = serverURI;
+		this.serverPublicKey = Resources.getServerPublicKey();
 	}
 
-	public Client(String serverURI) {
+	public Client(String serverURI) throws CertificateException {
 		// Default user ID is "user", just for simplicity
 		this(Resources.getPublicKeyByUserId("user"), Resources.getPrivateKeyByUserId("user"), serverURI);
 	}
@@ -114,20 +116,13 @@ public class Client {
 
 	private long requestNonce() {
 		try {
-			ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
-			ServerServiceGrpc.ServerServiceBlockingStub stub = ServerServiceGrpc.newBlockingStub(channel);
 			GetNonceRequest request = GetNonceRequest.newBuilder().setPublicKey(ByteString.copyFrom(userPublicKey.getEncoded())).build();
 			GetNonceResponse response = stub.getNonce(request);
 			channel.shutdown();
 			byte[] cypheredNonce = response.getCypheredNonce().toByteArray();
-			Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-			cipher.init(Cipher.DECRYPT_MODE, userPrivateKey);
-			byte[] nonceBytes = cipher.doFinal(cypheredNonce);
-			channel.shutdown();
-			return ByteBuffer.wrap(nonceBytes).getLong();
+			return signatureManager.decypherNonce(cypheredNonce);
 		}
-		catch (StatusRuntimeException | IllegalBlockSizeException | BadPaddingException |
-				InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException e) {
+		catch (StatusRuntimeException | CypherFailedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 			throw new RuntimeException(e);
@@ -136,124 +131,197 @@ public class Client {
 
 	// Requests sign of life from the server
 	public void ping(String input) {
-		ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
 		try {
 			PingRequest.Builder builder = PingRequest.newBuilder();
 			builder.setInput(input);
-			ServerServiceGrpc.ServerServiceBlockingStub stub = ServerServiceGrpc.newBlockingStub(channel);
-			String output = stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).ping(builder.build()).getOutput();
+			String output = this.stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).ping(builder.build()).getOutput();
 			System.out.println(output);
 		}
 		catch (StatusRuntimeException e) {
-			System.out.println("ERROR: " + e.getStatus().getDescription());
+			System.out.println(ERROR_PREFIX + e.getStatus().getDescription());
 		}
 		channel.shutdown();
 	}
 
 	// Open Account
 	public void openAccount() {
-		ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
 		try {
-			long nonce = requestNonce();
+			long nonceToClient = requestNonce();
 			OpenAccountRequest.Builder builder = OpenAccountRequest.newBuilder();
 			builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
+			byte[] nonceToServer = signatureManager.generateCypheredNonce(this.serverPublicKey);
+			builder.setCypheredNonce(ByteString.copyFrom(nonceToServer));
 			OpenAccountRequest content = builder.build();
-			byte[] signature = this.signatureManager.sign(nonce, content.toByteArray());
+			byte[] signature = this.signatureManager.sign(nonceToClient, content.toByteArray());
 			SignedOpenAccountRequest.Builder signedBuilder = SignedOpenAccountRequest.newBuilder();
 			signedBuilder.setContent(content);
 			signedBuilder.setSignature(ByteString.copyFrom(signature));
-			ServerServiceGrpc.ServerServiceBlockingStub stub = ServerServiceGrpc.newBlockingStub(channel);
-			stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).openAccount(signedBuilder.build());
+			SignedOpenAccountResponse response = this.stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).openAccount(signedBuilder.build());
+			byte[] serverSignature = response.getSignature().toByteArray();
+			if (this.signatureManager.verifySignature(serverPublicKey, serverSignature)) {
+				System.out.println("Operation successful!");
+			}
+			else {
+				System.out.println("Operation failed!");
+			}
 		}
 		catch (StatusRuntimeException e) {
-			System.out.println("ERROR: " + e.getStatus().getDescription());
+			System.out.println(ERROR_PREFIX + e.getStatus().getDescription());
+		}
+		catch (CypherFailedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		catch (SignatureVerificationFailedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 		channel.shutdown();
 	}
 
 	public void sendAmount(PublicKey destinationPublicKey, int amount) {
-		ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
 		try {
-			long nonce = requestNonce();
+			long nonceToClient = requestNonce();
 			SendAmountRequest.Builder builder = SendAmountRequest.newBuilder();
 			builder.setSourceKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
 			builder.setDestinationKey(ByteString.copyFrom(destinationPublicKey.getEncoded()));
 			builder.setAmount(amount);
+			byte[] nonceToServer = signatureManager.generateCypheredNonce(this.serverPublicKey);
+			builder.setCypheredNonce(ByteString.copyFrom(nonceToServer));
 			SendAmountRequest content = builder.build();
-			byte[] signature = this.signatureManager.sign(nonce, content.toByteArray());
+			byte[] signature = this.signatureManager.sign(nonceToClient, content.toByteArray());
 			SignedSendAmountRequest.Builder signedBuilder = SignedSendAmountRequest.newBuilder();
 			signedBuilder.setContent(content);
 			signedBuilder.setSignature(ByteString.copyFrom(signature));
-			ServerServiceGrpc.ServerServiceBlockingStub stub = ServerServiceGrpc.newBlockingStub(channel);
-			stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).sendAmount(signedBuilder.build());
+			SignedSendAmountResponse response = this.stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).sendAmount(signedBuilder.build());
+			byte[] serverSignature = response.getSignature().toByteArray();
+			if (this.signatureManager.verifySignature(serverPublicKey, serverSignature)) {
+				System.out.println("Operation successful!");
+			}
+			else {
+				System.out.println("Operation failed!");
+			}
 		}
 		catch (StatusRuntimeException e) {
-			System.out.println("ERROR: " + e.getStatus().getDescription());
+			System.out.println(ERROR_PREFIX + e.getStatus().getDescription());
+		}
+		catch (CypherFailedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		catch (SignatureVerificationFailedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 		channel.shutdown();
 	}
 
 	public void checkAccount() {
-		ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
 		try {
-			long nonce = requestNonce();
+			long nonceToClient = requestNonce();
 			CheckAccountRequest.Builder builder = CheckAccountRequest.newBuilder();
 			builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
+			byte[] nonceToServer = signatureManager.generateCypheredNonce(this.serverPublicKey);
+			builder.setCypheredNonce(ByteString.copyFrom(nonceToServer));
 			CheckAccountRequest content = builder.build();
-			byte[] signature = this.signatureManager.sign(nonce, content.toByteArray());
+			byte[] signature = this.signatureManager.sign(nonceToClient, content.toByteArray());
 			SignedCheckAccountRequest.Builder signedBuilder = SignedCheckAccountRequest.newBuilder();
 			signedBuilder.setContent(content);
 			signedBuilder.setSignature(ByteString.copyFrom(signature));
-			ServerServiceGrpc.ServerServiceBlockingStub stub = ServerServiceGrpc.newBlockingStub(channel);
-			CheckAccountResponse response = stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).checkAccount(signedBuilder.build());
-			System.out.println("Balance: " + response.getBalance());
+			SignedCheckAccountResponse response = this.stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).checkAccount(signedBuilder.build());
+			byte[] serverSignature = response.getSignature().toByteArray();
+			if (this.signatureManager.verifySignature(serverPublicKey, serverSignature, response.getContent().toByteArray())) {
+				System.out.println("Operation successful!");
+			}
+			else {
+				System.out.println("Operation failed!");
+			}
+			System.out.println("Balance: " + response.getContent().getBalance());
 			System.out.println("Pending Transfers: ");
-			System.out.println(response.getPendingTransfers());
+			System.out.println(response.getContent().getPendingTransfers());
+
 		}
 		catch (StatusRuntimeException e) {
-			System.out.println("ERROR: " + e.getStatus().getDescription());
+			System.out.println(ERROR_PREFIX + e.getStatus().getDescription());
+		}
+		catch (CypherFailedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		catch (SignatureVerificationFailedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 		channel.shutdown();
 	}
 
 	public void receiveAmount(int transferNum) {
 		try {
-			long nonce = requestNonce();
+			long nonceToClient = requestNonce();
 			ReceiveAmountRequest.Builder builder = ReceiveAmountRequest.newBuilder();
 			builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
 			builder.setTransferNum(transferNum);
+			byte[] nonceToServer = signatureManager.generateCypheredNonce(this.serverPublicKey);
+			builder.setCypheredNonce(ByteString.copyFrom(nonceToServer));
 			ReceiveAmountRequest content = builder.build();
-			byte[] signature = this.signatureManager.sign(nonce, content.toByteArray());
+			byte[] signature = this.signatureManager.sign(nonceToClient, content.toByteArray());
 			SignedReceiveAmountRequest.Builder signedBuilder = SignedReceiveAmountRequest.newBuilder();
 			signedBuilder.setContent(content);
 			signedBuilder.setSignature(ByteString.copyFrom(signature));
-			ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
-			ServerServiceGrpc.ServerServiceBlockingStub stub = ServerServiceGrpc.newBlockingStub(channel);
-			stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).receiveAmount(signedBuilder.build());
+			SignedReceiveAmountResponse response = this.stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).receiveAmount(signedBuilder.build());
+			byte[] serverSignature = response.getSignature().toByteArray();
+			if (this.signatureManager.verifySignature(serverPublicKey, serverSignature)) {
+				System.out.println("Operation successful!");
+			}
+			else {
+				System.out.println("Operation failed!");
+			}
 		}
 		catch (StatusRuntimeException e) {
-			System.out.println("ERROR: " + e.getStatus().getDescription());
+			System.out.println(ERROR_PREFIX + e.getStatus().getDescription());
+		}
+		catch (CypherFailedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		catch (SignatureVerificationFailedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
 
 	public void audit() {
 		try {
-			long nonce = requestNonce();
+			long nonceToClient = requestNonce();
 			AuditRequest.Builder builder = AuditRequest.newBuilder();
 			builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
+			byte[] nonceToServer = signatureManager.generateCypheredNonce(this.serverPublicKey);
+			builder.setCypheredNonce(ByteString.copyFrom(nonceToServer));
 			AuditRequest content = builder.build();
-			byte[] signature = this.signatureManager.sign(nonce, content.toByteArray());
+			byte[] signature = this.signatureManager.sign(nonceToClient, content.toByteArray());
 			SignedAuditRequest.Builder signedBuilder = SignedAuditRequest.newBuilder();
 			signedBuilder.setContent(content);
 			signedBuilder.setSignature(ByteString.copyFrom(signature));
-			ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
-			ServerServiceGrpc.ServerServiceBlockingStub stub = ServerServiceGrpc.newBlockingStub(channel);
-			AuditResponse response = stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).audit(signedBuilder.build());
+			SignedAuditResponse response = this.stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).audit(signedBuilder.build());
+			byte[] serverSignature = response.getSignature().toByteArray();
+			if (this.signatureManager.verifySignature(serverPublicKey, serverSignature, response.getContent().toByteArray())) {
+				System.out.println("Operation successful!");
+			}
+			else {
+				System.out.println("Operation failed!");
+			}
 			System.out.println("Transaction History: ");
-			System.out.println(response.getHistory());
+			System.out.println(response.getContent().getHistory());
 		}
 		catch (StatusRuntimeException e) {
-			System.out.println("ERROR: " + e.getStatus().getDescription());
+			System.out.println(ERROR_PREFIX + e.getStatus().getDescription());
+		}
+		catch (CypherFailedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		catch (SignatureVerificationFailedException e) {
+			e.printStackTrace();
 		}
 	}
 

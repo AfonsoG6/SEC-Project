@@ -1,5 +1,6 @@
 package pt.tecnico.sec.bftb.client;
 
+import pt.tecnico.sec.bftb.client.exceptions.CypherFailedException;
 import pt.tecnico.sec.bftb.client.exceptions.SignatureVerificationFailedException;
 
 import javax.crypto.BadPaddingException;
@@ -10,23 +11,58 @@ import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.security.*;
 import java.util.Arrays;
+import java.util.Random;
 
 public class SignatureManager {
+	private final Random randomGenerator;
 	private PrivateKey privateKey;
+	private long currentNonce;
 
 	public SignatureManager(PrivateKey privateKey) {
+		this.randomGenerator = new SecureRandom();
 		this.privateKey = privateKey;
+		this.currentNonce = 0;
 	}
 
 	public void setPrivateKey(PrivateKey privateKey) {
 		this.privateKey = privateKey;
 	}
 
-	public boolean verifySignature(PublicKey peerPublicKey, long nonce, byte[] content, byte[] signature) throws
+	public byte[] cypherNonce(PublicKey peerPublicKey, long nonce) throws CypherFailedException {
+		try {
+			Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+			cipher.init(Cipher.ENCRYPT_MODE, peerPublicKey);
+			byte[] nonceBytes = ByteBuffer.allocate(Long.BYTES).putLong(nonce).array();
+			return cipher.doFinal(nonceBytes);
+		}
+		catch (IllegalBlockSizeException | BadPaddingException | InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException e) {
+			throw new CypherFailedException(e);
+		}
+	}
+
+	public long decypherNonce(byte[] cypheredNonce) throws CypherFailedException {
+		try {
+			Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+			cipher.init(Cipher.DECRYPT_MODE, this.privateKey);
+			byte[] nonceBytes = cipher.doFinal(cypheredNonce);
+			return ByteBuffer.wrap(nonceBytes).getLong();
+		}
+		catch (IllegalBlockSizeException | BadPaddingException | InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException e) {
+			throw new CypherFailedException(e);
+		}
+	}
+
+	public byte[] generateCypheredNonce(PublicKey peerPublicKey) throws CypherFailedException {
+		// Generate new nonce, store it and return it
+		this.currentNonce = randomGenerator.nextLong();
+		return cypherNonce(peerPublicKey, currentNonce);
+	}
+
+	public boolean verifySignature(PublicKey peerPublicKey, byte[] signature, byte[] content) throws
 			SignatureVerificationFailedException {
 		try {
 			// Concatenate nonce and content
-			byte[] request = ByteBuffer.allocate(Long.BYTES + content.length).putLong(nonce).put(content).array();
+			byte[] request = ByteBuffer.allocate(Long.BYTES + content.length).putLong(this.currentNonce).put(content).array();
 			// Hash it with SHA-256
 			byte[] expectedHash = MessageDigest.getInstance("SHA-256").digest(request);
 			// Decrypt SERVER's signature
@@ -40,6 +76,12 @@ public class SignatureManager {
 			throw new SignatureVerificationFailedException(e);
 		}
 	}
+
+	public boolean verifySignature(PublicKey peerPublicKey, byte[] signature) throws
+			SignatureVerificationFailedException {
+		return verifySignature(peerPublicKey, signature, new byte[0]);
+	}
+
 
 	public byte[] sign(long nonce, byte[] content) {
 		try {
@@ -57,5 +99,9 @@ public class SignatureManager {
 			e.printStackTrace();
 			throw new RuntimeException(e);
 		}
+	}
+
+	public byte[] sign(long nonce) {
+		return sign(nonce, new byte[0]);
 	}
 }

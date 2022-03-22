@@ -1,7 +1,7 @@
 syntax = "proto3";
 package pt.tecnico.sec.bftb.server.grpc;
 
-// Open Account Operation
+//--------------------------------------------Open Account Operation----------------------------------------------------
 
 message OpenAccountRequest {
   bytes publicKey = 1;
@@ -13,11 +13,13 @@ message SignedOpenAccountRequest {
   bytes signature = 2; // Signature created by the CLIENT
 }
 
-message OpenAccountResponse {
+// No OpenAccountResponse needed
+
+message SignedOpenAccountResponse {
   bytes signature = 1; // Signature created by the SERVER
 }
 
-// Send Amount Operation
+//--------------------------------------------Send Amount Operation-----------------------------------------------------
 
 message SendAmountRequest {
   bytes sourceKey = 1;
@@ -31,15 +33,16 @@ message SignedSendAmountRequest {
   bytes signature = 2; // Signature created by the CLIENT
 }
 
-message SendAmountResponse {
+// No SendAmountResponse needed
+
+message SignedSendAmountResponse {
   bytes signature = 1; // Signature created by the SERVER
 }
 
-// Check Account Operation
+//--------------------------------------------Check Account Operation---------------------------------------------------
 
 message CheckAccountRequest {
   bytes publicKey = 1;
-  bytes signature = 2; // Signature created by the CLIENT
   bytes cypheredNonce = 3; // Challenge created by the CLIENT
 }
 
@@ -53,7 +56,12 @@ message CheckAccountResponse {
   string pendingTransfers = 2;
 }
 
-// Receive Amount Operation
+message SignedCheckAccountResponse {
+  CheckAccountResponse content = 1;
+  bytes signature = 2; // Signature created by the SERVER
+}
+
+//--------------------------------------------Receive Amount Operation--------------------------------------------------
 
 message ReceiveAmountRequest {
   bytes publicKey = 1;
@@ -66,11 +74,13 @@ message SignedReceiveAmountRequest {
   bytes signature = 2; // Signature created by the CLIENT
 }
 
-message ReceiveAmountResponse {
+// No ReceiveAmountResponse needed
+
+message SignedReceiveAmountResponse {
   bytes signature = 1; // Signature created by the SERVER
 }
 
-// Audit Operation
+//--------------------------------------------Audit Operation-----------------------------------------------------------
 
 message AuditRequest {
   bytes publicKey = 1;
@@ -84,10 +94,14 @@ message SignedAuditRequest {
 
 message AuditResponse {
   string history = 1;
+}
+
+message SignedAuditResponse {
+  AuditResponse content = 1;
   bytes signature = 2; // Signature created by the SERVER
 }
 
-// Request Nonce Operation
+//--------------------------------------------Request Nonce Operation---------------------------------------------------
 
 message GetNonceRequest {
   bytes publicKey = 1;
@@ -97,7 +111,7 @@ message GetNonceResponse {
   bytes cypheredNonce = 1; // Challenge created by the SERVER
 }
 
-// Ping Operation
+//--------------------------------------------Ping Operation------------------------------------------------------------
 
 message PingRequest {
   string input = 1;
@@ -107,14 +121,14 @@ message PingResponse {
   string output = 1;
 }
 
-// Service
+//--------------------------------------------Service-------------------------------------------------------------------
 
 service ServerService {
-  rpc open_account(SignedOpenAccountRequest) returns (OpenAccountResponse);
-  rpc send_amount(SignedSendAmountRequest) returns (SendAmountResponse);
-  rpc check_account(SignedCheckAccountRequest) returns (CheckAccountResponse);
-  rpc receive_amount(SignedReceiveAmountRequest) returns (ReceiveAmountResponse);
-  rpc audit(SignedAuditRequest) returns (AuditResponse);
+  rpc open_account(SignedOpenAccountRequest) returns (SignedOpenAccountResponse);
+  rpc send_amount(SignedSendAmountRequest) returns (SignedSendAmountResponse);
+  rpc check_account(SignedCheckAccountRequest) returns (SignedCheckAccountResponse);
+  rpc receive_amount(SignedReceiveAmountRequest) returns (SignedReceiveAmountResponse);
+  rpc audit(SignedAuditRequest) returns (SignedAuditResponse);
   rpc get_nonce(GetNonceRequest) returns (GetNonceResponse);
   rpc ping(PingRequest) returns (PingResponse);
 }
