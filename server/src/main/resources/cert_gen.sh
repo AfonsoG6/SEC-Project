@@ -2,7 +2,7 @@ privKeyName="privkey"
 pubKeyName="pubkey"
 certName="cert"
 tempDir="temp"
-outputDir="output"
+outputDir="crypto"
 
 #certInput="PT\nLisbon\nLisbon\nIST SEC\nBFTB\nafonso.gomes@tecnico.ulisboa.pt\n\n\n"
 certInput="/C=PT/ST=Lisbon/L=Lisbon/O=IST/OU=SEC/CN=BFTB-G35/emailAddress=afonso.gomes@tecnico.ulisboa.pt"

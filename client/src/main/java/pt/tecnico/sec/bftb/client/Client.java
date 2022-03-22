@@ -11,8 +11,10 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
+import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.security.*;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.PatternSyntaxException;
 
@@ -33,11 +35,13 @@ public class Client {
 			"- audit                          Obtain the full transaction history of the account%n" +
 			"- exit                           Exit the App%n";
 
+	private final SignatureManager signatureManager;
 	private PublicKey userPublicKey;
 	private PrivateKey userPrivateKey;
 	private final String serverURI;
 
 	public Client(PublicKey userPublicKey, PrivateKey userPrivateKey, String serverURI) {
+		this.signatureManager = new SignatureManager(userPrivateKey);
 		this.userPublicKey = userPublicKey;
 		this.userPrivateKey = userPrivateKey;
 		this.serverURI = serverURI;
@@ -104,6 +108,7 @@ public class Client {
 	private void changeUser(String userId) {
 		userPrivateKey = Resources.getPrivateKeyByUserId(userId);
 		userPublicKey = Resources.getPublicKeyByUserId(userId);
+		signatureManager.setPrivateKey(userPrivateKey);
 		System.out.printf("User changed to '%s'%n", userId);
 	}
 
@@ -123,25 +128,6 @@ public class Client {
 		}
 		catch (StatusRuntimeException | IllegalBlockSizeException | BadPaddingException |
 				InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			throw new RuntimeException(e);
-		}
-	}
-
-	private byte[] getSignature(long nonce, byte[] content) {
-		try {
-			// Concatenate nonce and content
-			byte[] request = ByteBuffer.allocate(Long.BYTES + content.length).putLong(nonce).put(content).array();
-			// Hash it with SHA-256
-			byte[] hash = MessageDigest.getInstance("SHA-256").digest(request);
-
-			// Encrypt CLIENT's signature
-			Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-			cipher.init(Cipher.ENCRYPT_MODE, userPrivateKey);
-			return cipher.doFinal(hash);
-		}
-		catch (IllegalBlockSizeException | BadPaddingException | InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 			throw new RuntimeException(e);
@@ -172,7 +158,7 @@ public class Client {
 			OpenAccountRequest.Builder builder = OpenAccountRequest.newBuilder();
 			builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
 			OpenAccountRequest content = builder.build();
-			byte[] signature = getSignature(nonce, content.toByteArray());
+			byte[] signature = this.signatureManager.sign(nonce, content.toByteArray());
 			SignedOpenAccountRequest.Builder signedBuilder = SignedOpenAccountRequest.newBuilder();
 			signedBuilder.setContent(content);
 			signedBuilder.setSignature(ByteString.copyFrom(signature));
@@ -194,7 +180,7 @@ public class Client {
 			builder.setDestinationKey(ByteString.copyFrom(destinationPublicKey.getEncoded()));
 			builder.setAmount(amount);
 			SendAmountRequest content = builder.build();
-			byte[] signature = getSignature(nonce, content.toByteArray());
+			byte[] signature = this.signatureManager.sign(nonce, content.toByteArray());
 			SignedSendAmountRequest.Builder signedBuilder = SignedSendAmountRequest.newBuilder();
 			signedBuilder.setContent(content);
 			signedBuilder.setSignature(ByteString.copyFrom(signature));
@@ -214,7 +200,7 @@ public class Client {
 			CheckAccountRequest.Builder builder = CheckAccountRequest.newBuilder();
 			builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
 			CheckAccountRequest content = builder.build();
-			byte[] signature = getSignature(nonce, content.toByteArray());
+			byte[] signature = this.signatureManager.sign(nonce, content.toByteArray());
 			SignedCheckAccountRequest.Builder signedBuilder = SignedCheckAccountRequest.newBuilder();
 			signedBuilder.setContent(content);
 			signedBuilder.setSignature(ByteString.copyFrom(signature));
@@ -237,7 +223,7 @@ public class Client {
 			builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
 			builder.setTransferNum(transferNum);
 			ReceiveAmountRequest content = builder.build();
-			byte[] signature = getSignature(nonce, content.toByteArray());
+			byte[] signature = this.signatureManager.sign(nonce, content.toByteArray());
 			SignedReceiveAmountRequest.Builder signedBuilder = SignedReceiveAmountRequest.newBuilder();
 			signedBuilder.setContent(content);
 			signedBuilder.setSignature(ByteString.copyFrom(signature));
@@ -256,7 +242,7 @@ public class Client {
 			AuditRequest.Builder builder = AuditRequest.newBuilder();
 			builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
 			AuditRequest content = builder.build();
-			byte[] signature = getSignature(nonce, content.toByteArray());
+			byte[] signature = this.signatureManager.sign(nonce, content.toByteArray());
 			SignedAuditRequest.Builder signedBuilder = SignedAuditRequest.newBuilder();
 			signedBuilder.setContent(content);
 			signedBuilder.setSignature(ByteString.copyFrom(signature));

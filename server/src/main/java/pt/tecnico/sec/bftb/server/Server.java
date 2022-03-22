@@ -1,74 +1,17 @@
 package pt.tecnico.sec.bftb.server;
 
 import pt.tecnico.sec.bftb.server.exceptions.*;
-import pt.tecnico.sec.bftb.server.grpc.Server.*;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import java.nio.BufferUnderflowException;
-import java.nio.ByteBuffer;
 import java.security.*;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Server {
-    private final Random randomGenerator;
+    private final SignatureManager signatureManager;
     private final ConcurrentHashMap<PublicKey, Account> accounts;
-    private final Map<PublicKey, Long> currentNonces = new ConcurrentHashMap<>();
 
     public Server() throws NoSuchAlgorithmException {
-        this.randomGenerator = SecureRandom.getInstanceStrong();
+        this.signatureManager = new SignatureManager();
         this.accounts = new ConcurrentHashMap<>();
-    }
-
-    private byte[] cypherNonce(PublicKey publicKey, long nonce) throws CypherFailedException {
-        try {
-            Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-            cipher.init(Cipher.ENCRYPT_MODE, publicKey);
-            byte[] nonceBytes = ByteBuffer.allocate(Long.BYTES).putLong(nonce).array();
-            return cipher.doFinal(nonceBytes);
-        }
-        catch (IllegalBlockSizeException | BadPaddingException | InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException e) {
-            throw new CypherFailedException(e);
-        }
-    }
-
-    public byte[] generateNonce(PublicKey publicKey) throws CypherFailedException {
-        // Remove old nonce if it exists
-        currentNonces.remove(publicKey);
-        // Generate new nonce, store it and return it
-        long nonce = randomGenerator.nextLong();
-        currentNonces.put(publicKey, nonce);
-        return cypherNonce(publicKey, nonce);
-    }
-
-    public boolean verifySignature(PublicKey publicKey, byte[] content, byte[] signature) throws SignatureVerificationFailedException {
-        try {
-            if (!currentNonces.containsKey(publicKey)) throw new SignatureVerificationFailedException("Account does not have a currently usable nonce");
-            // Get nonce
-            long nonce = currentNonces.get(publicKey);
-            // Concatenate nonce and content
-            byte[] request = ByteBuffer.allocate(Long.BYTES + content.length).putLong(nonce).put(content).array();
-            // Hash it with SHA-256
-            byte[] expectedHash = MessageDigest.getInstance("SHA-256").digest(request);
-            // Decrypt CLIENT's signature
-            Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-            cipher.init(Cipher.DECRYPT_MODE, publicKey);
-            byte[] receivedHash = cipher.doFinal(signature);
-            // Compare the received hash with the expected one
-            if (Arrays.equals(expectedHash, receivedHash)) {
-                currentNonces.remove(publicKey);
-                return true;
-            }
-            else return false;
-        }
-        catch (NoSuchAlgorithmException | InvalidKeyException | BadPaddingException | IllegalBlockSizeException | NoSuchPaddingException | BufferUnderflowException e) {
-            throw new SignatureVerificationFailedException(e);
-        }
     }
 
     public void openAccount(PublicKey publicKey) {
@@ -132,5 +75,16 @@ public class Server {
         Account account = findAccount(publicKey);
         if (account == null) throw new AccountDoesNotExistException();
         return account.getApprovedTransfers();
+    }
+
+    // Pass-through methods:
+
+    public byte[] generateNonce(PublicKey publicKey) throws CypherFailedException {
+        return signatureManager.generateNonce(publicKey);
+    }
+
+    public boolean verifySignature(PublicKey publicKey, byte[] toByteArray, byte[] signature)
+            throws SignatureVerificationFailedException {
+        return signatureManager.verifySignature(publicKey, toByteArray, signature);
     }
 }
