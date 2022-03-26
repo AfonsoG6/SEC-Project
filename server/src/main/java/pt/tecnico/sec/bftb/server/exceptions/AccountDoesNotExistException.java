@@ -1,8 +1,10 @@
 package pt.tecnico.sec.bftb.server.exceptions;
 
 public class AccountDoesNotExistException extends Exception {
+	private static final String DEFAULT_MESSAGE = "Account associated with given Public Key does not exist";
+
 	public AccountDoesNotExistException() {
-		super();
+		super(DEFAULT_MESSAGE);
 	}
 
 	public AccountDoesNotExistException(String message) {
@@ -14,6 +16,6 @@ public class AccountDoesNotExistException extends Exception {
 	}
 
 	public AccountDoesNotExistException(Throwable cause) {
-		super(cause);
+		super(DEFAULT_MESSAGE, cause);
 	}
 }

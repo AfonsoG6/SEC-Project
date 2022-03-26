@@ -1,5 +1,7 @@
 package pt.tecnico.sec.bftb.server;
 
+import pt.tecnico.sec.bftb.server.exceptions.PrivateKeyLoadingFailedException;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
@@ -16,7 +18,7 @@ public class Resources {
 
 	private Resources() { /* empty */ }
 
-	public static PrivateKey getPrivateKey() {
+	public static PrivateKey getPrivateKey() throws PrivateKeyLoadingFailedException {
 		try {
 			String pathString = Path.of(CRYPTO_PATH, KEYSTORE_FILENAME).toString();
 			InputStream keyStream = Resources.class.getClassLoader().getResourceAsStream(pathString);
@@ -26,8 +28,7 @@ public class Resources {
 			return (PrivateKey) ks.getKey("private", KEYSTORE_PWD.toCharArray());
 		}
 		catch (KeyStoreException | UnrecoverableKeyException | CertificateException | IOException | NoSuchAlgorithmException e) {
-			// TODO: handle exception correctly
-			throw new RuntimeException(e);
+			throw new PrivateKeyLoadingFailedException(e);
 		}
 	}
 }

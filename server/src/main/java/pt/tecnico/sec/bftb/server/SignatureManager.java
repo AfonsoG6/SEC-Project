@@ -1,6 +1,7 @@
 package pt.tecnico.sec.bftb.server;
 
 import pt.tecnico.sec.bftb.server.exceptions.CypherFailedException;
+import pt.tecnico.sec.bftb.server.exceptions.PrivateKeyLoadingFailedException;
 import pt.tecnico.sec.bftb.server.exceptions.SignatureVerificationFailedException;
 
 import javax.crypto.BadPaddingException;
@@ -21,7 +22,7 @@ public class SignatureManager {
 	private final Map<PublicKey, Long> currentNonces;
 
 
-	public SignatureManager() {
+	public SignatureManager() throws PrivateKeyLoadingFailedException {
 		this.randomGenerator = new SecureRandom();
 		this.privateKey = Resources.getPrivateKey();
 		this.currentNonces = new ConcurrentHashMap<>();
@@ -91,7 +92,7 @@ public class SignatureManager {
 		return verifySignature(peerPublicKey, signature, new byte[0]);
 	}
 
-	public byte[] sign(long nonce, byte[] content) {
+	public byte[] sign(long nonce, byte[] content) throws CypherFailedException {
 		try {
 			// Concatenate nonce and content (which might be empty)
 			byte[] request = ByteBuffer.allocate(Long.BYTES + content.length).putLong(nonce).put(content).array();
@@ -103,13 +104,11 @@ public class SignatureManager {
 			return cipher.doFinal(hash);
 		}
 		catch (IllegalBlockSizeException | BadPaddingException | InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			throw new RuntimeException(e);
+			throw new CypherFailedException(e);
 		}
 	}
 
-	public byte[] sign(long nonce) {
+	public byte[] sign(long nonce) throws CypherFailedException {
 		return sign(nonce, new byte[0]);
 	}
 }

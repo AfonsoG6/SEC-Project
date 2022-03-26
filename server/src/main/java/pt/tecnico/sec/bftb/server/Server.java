@@ -1,8 +1,11 @@
 package pt.tecnico.sec.bftb.server;
 
-import pt.tecnico.sec.bftb.server.exceptions.*;
+import pt.tecnico.sec.bftb.server.exceptions.AccountDoesNotExistException;
+import pt.tecnico.sec.bftb.server.exceptions.AmountTooLowException;
+import pt.tecnico.sec.bftb.server.exceptions.BalanceTooLowException;
+import pt.tecnico.sec.bftb.server.exceptions.InvalidTransferNumberException;
 
-import java.security.*;
+import java.security.PublicKey;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Server {
@@ -51,10 +54,10 @@ public class Server {
     // Receive Amount:
 
     public void receiveAmount(PublicKey publicKey, int transferNum)
-            throws AccountDoesNotExistException, BalanceTooLowException, InvalidRequestException {
+            throws AccountDoesNotExistException, BalanceTooLowException, InvalidTransferNumberException {
         Account destination = findAccount(publicKey);
         if (destination == null) throw new AccountDoesNotExistException();
-        if (!destination.isPendingTransferNumValid(transferNum)) throw new InvalidRequestException("Invalid transfer number");
+        if (!destination.isPendingTransferNumValid(transferNum)) throw new InvalidTransferNumberException();
         Transfer transfer = destination.getPendingTransfer(transferNum);
         PublicKey sourceKey = transfer.getSourceKey();
         Account source = findAccount(sourceKey);

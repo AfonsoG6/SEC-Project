@@ -2,13 +2,15 @@ package pt.tecnico.sec.bftb.server;
 
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import pt.tecnico.sec.bftb.server.exceptions.PrivateKeyLoadingFailedException;
 
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 
 public class ServerMain {
 
-	public static void main(String[] args) throws IOException, InterruptedException, NoSuchAlgorithmException {
+	public static void main(String[] args)
+			throws IOException, InterruptedException, PrivateKeyLoadingFailedException {
 		System.out.println(ServerMain.class.getSimpleName());
 		
 		// receive and print arguments

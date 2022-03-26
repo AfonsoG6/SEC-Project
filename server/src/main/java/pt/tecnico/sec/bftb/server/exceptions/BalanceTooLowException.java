@@ -1,8 +1,10 @@
 package pt.tecnico.sec.bftb.server.exceptions;
 
 public class BalanceTooLowException extends Exception {
+	private static final String DEFAULT_MESSAGE = "Balance of the account is too low";
+
 	public BalanceTooLowException() {
-		super();
+		super(DEFAULT_MESSAGE);
 	}
 
 	public BalanceTooLowException(String message) {
@@ -14,6 +16,6 @@ public class BalanceTooLowException extends Exception {
 	}
 
 	public BalanceTooLowException(Throwable cause) {
-		super(cause);
+		super(DEFAULT_MESSAGE, cause);
 	}
 }

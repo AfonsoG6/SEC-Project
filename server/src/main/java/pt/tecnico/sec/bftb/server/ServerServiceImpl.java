@@ -3,11 +3,10 @@ package pt.tecnico.sec.bftb.server;
 import com.google.protobuf.ByteString;
 import io.grpc.Context;
 import io.grpc.stub.StreamObserver;
-import pt.tecnico.sec.bftb.server.exceptions.CypherFailedException;
+import pt.tecnico.sec.bftb.server.exceptions.*;
 import pt.tecnico.sec.bftb.server.grpc.Server.*;
 import pt.tecnico.sec.bftb.server.grpc.ServerServiceGrpc;
 
-import java.nio.ByteBuffer;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
@@ -23,7 +22,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 	private final SignatureManager signatureManager;
 	private final Server server;
 
-	public ServerServiceImpl() throws NoSuchAlgorithmException {
+	public ServerServiceImpl() throws PrivateKeyLoadingFailedException {
 		this.signatureManager = new SignatureManager();
 		this.server = new Server();
     }
@@ -44,17 +43,18 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 				responseObserver.onError(INVALID_ARGUMENT.withDescription("Invalid signature").asRuntimeException());
 			}
 			server.openAccount(publicKey);
-			// Build Response
+			// Build Signed Response
             SignedOpenAccountResponse.Builder signedBuilder = SignedOpenAccountResponse.newBuilder();
 			byte[] serverSignature = signatureManager.sign(nonceToServer);
 			signedBuilder.setSignature(ByteString.copyFrom(serverSignature));
-            SignedOpenAccountResponse response = signedBuilder.build();
+            SignedOpenAccountResponse signedResponse = signedBuilder.build();
             // Send Response
-            responseObserver.onNext(response);
+            responseObserver.onNext(signedResponse);
             responseObserver.onCompleted();
 		}
-		catch (Exception e) {
-			// TODO handle exceptions correclty
+		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException e) {
+			e.printStackTrace();
+			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
 		}
 	}
 
@@ -77,17 +77,22 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 				responseObserver.onError(INVALID_ARGUMENT.withDescription("Invalid signature").asRuntimeException());
 			}
 			server.sendAmount(sourceKey, destinationKey, amount);
-			// Build Response
+			// Build Signed Response
 			SignedSendAmountResponse.Builder signedBuilder = SignedSendAmountResponse.newBuilder();
 			byte[] serverSignature = signatureManager.sign(nonceToServer);
 			signedBuilder.setSignature(ByteString.copyFrom(serverSignature));
-			SignedSendAmountResponse response = signedBuilder.build();
+			SignedSendAmountResponse signedResponse = signedBuilder.build();
             // Send Response
-            responseObserver.onNext(response);
+            responseObserver.onNext(signedResponse);
             responseObserver.onCompleted();
 		}
-		catch (Exception e) {
-			// TODO handle exceptions correclty
+		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException e) {
+			e.printStackTrace();
+			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
+		}
+		catch (AmountTooLowException | AccountDoesNotExistException | BalanceTooLowException e) {
+			e.printStackTrace();
+			responseObserver.onError(INVALID_ARGUMENT.withDescription(e.getMessage()).asRuntimeException());
 		}
 	}
 
@@ -112,18 +117,24 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
             CheckAccountResponse.Builder builder = CheckAccountResponse.newBuilder();
 			builder.setBalance(balance);
 			builder.setPendingTransfers(transfers);
-
+			CheckAccountResponse response = builder.build();
+			// Build Signed Response
 			SignedCheckAccountResponse.Builder signedBuilder = SignedCheckAccountResponse.newBuilder();
-			signedBuilder.setContent(builder.build());
+			signedBuilder.setContent(response);
 			byte[] serverSignature = signatureManager.sign(nonceToServer, signedBuilder.getContent().toByteArray());
 			signedBuilder.setSignature(ByteString.copyFrom(serverSignature));
-			SignedCheckAccountResponse response = signedBuilder.build();
+			SignedCheckAccountResponse signedResponse = signedBuilder.build();
             // Send Response
-            responseObserver.onNext(response);
+            responseObserver.onNext(signedResponse);
             responseObserver.onCompleted();
 		}
-		catch (Exception e) {
-			// TODO handle exceptions correclty
+		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException e) {
+			e.printStackTrace();
+			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
+		}
+		catch (AccountDoesNotExistException e) {
+			e.printStackTrace();
+			responseObserver.onError(INVALID_ARGUMENT.withDescription(e.getMessage()).asRuntimeException());
 		}
 	}
 
@@ -144,17 +155,22 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			}
 			int transferNum = content.getTransferNum();
 			server.receiveAmount(publicKey, transferNum);
-			// Build Response
+			// Build Signed Response
             SignedReceiveAmountResponse.Builder signedBuilder = SignedReceiveAmountResponse.newBuilder();
 			byte[] serverSignature = signatureManager.sign(nonceToServer);
 			signedBuilder.setSignature(ByteString.copyFrom(serverSignature));
-            SignedReceiveAmountResponse response = signedBuilder.build();
+            SignedReceiveAmountResponse signedResponse = signedBuilder.build();
             // Send Response
-            responseObserver.onNext(response);
+            responseObserver.onNext(signedResponse);
             responseObserver.onCompleted();
 		}
-		catch (Exception e) {
-			// TODO handle exceptions correclty
+		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException e) {
+			e.printStackTrace();
+			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
+		}
+		catch (AccountDoesNotExistException | BalanceTooLowException | InvalidTransferNumberException e) {
+			e.printStackTrace();
+			responseObserver.onError(INVALID_ARGUMENT.withDescription(e.getMessage()).asRuntimeException());
 		}
 	}
 
@@ -176,17 +192,20 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			// Build Response
             AuditResponse.Builder builder = AuditResponse.newBuilder();
 			builder.setHistory(server.getApprovedTransfers(publicKey));
+			AuditResponse response = builder.build();
+			// Build Signed Response
 			SignedAuditResponse.Builder signedBuilder = SignedAuditResponse.newBuilder();
-			signedBuilder.setContent(builder.build());
+			signedBuilder.setContent(response);
 			byte[] serverSignature = signatureManager.sign(nonceToServer, signedBuilder.getContent().toByteArray());
 			signedBuilder.setSignature(ByteString.copyFrom(serverSignature));
-            SignedAuditResponse response = signedBuilder.build();
+            SignedAuditResponse signedResponse = signedBuilder.build();
             // Send Response
-            responseObserver.onNext(response);
+            responseObserver.onNext(signedResponse);
             responseObserver.onCompleted();
 		}
-		catch (Exception e) {
-			// TODO handle exceptions correclty
+		catch (AccountDoesNotExistException | CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException e) {
+			e.printStackTrace();
+			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
 		}
 	}
 
