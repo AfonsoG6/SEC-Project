@@ -17,6 +17,7 @@ import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class SignatureManager {
+	public static final String CIPHER_TRANSFORMATION = "RSA/CBC/PKCS1Padding";
 	private final Random randomGenerator;
 	private final PrivateKey privateKey;
 	private final Map<PublicKey, Long> currentNonces;
@@ -30,7 +31,7 @@ public class SignatureManager {
 
 	public byte[] cypherNonce(PublicKey peerPublicKey, long nonce) throws CypherFailedException {
 		try {
-			Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+			Cipher cipher = Cipher.getInstance(CIPHER_TRANSFORMATION);
 			cipher.init(Cipher.ENCRYPT_MODE, peerPublicKey);
 			byte[] nonceBytes = ByteBuffer.allocate(Long.BYTES).putLong(nonce).array();
 			return cipher.doFinal(nonceBytes);
@@ -42,7 +43,7 @@ public class SignatureManager {
 
 	public long decypherNonce(byte[] cypheredNonce) throws CypherFailedException {
 		try {
-			Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+			Cipher cipher = Cipher.getInstance(CIPHER_TRANSFORMATION);
 			cipher.init(Cipher.DECRYPT_MODE, this.privateKey);
 			byte[] nonceBytes = cipher.doFinal(cypheredNonce);
 			return ByteBuffer.wrap(nonceBytes).getLong();
@@ -72,7 +73,7 @@ public class SignatureManager {
 			// Hash it with SHA-256
 			byte[] expectedHash = MessageDigest.getInstance("SHA-256").digest(request);
 			// Decrypt CLIENT's signature
-			Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+			Cipher cipher = Cipher.getInstance(CIPHER_TRANSFORMATION);
 			cipher.init(Cipher.DECRYPT_MODE, peerPublicKey);
 			byte[] receivedHash = cipher.doFinal(signature);
 			// Compare the received hash with the expected one
@@ -99,7 +100,7 @@ public class SignatureManager {
 			// Hash it with SHA-256
 			byte[] hash = MessageDigest.getInstance("SHA-256").digest(request);
 			// Encrypt SERVER's signature
-			Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+			Cipher cipher = Cipher.getInstance(CIPHER_TRANSFORMATION);
 			cipher.init(Cipher.ENCRYPT_MODE, this.privateKey);
 			return cipher.doFinal(hash);
 		}

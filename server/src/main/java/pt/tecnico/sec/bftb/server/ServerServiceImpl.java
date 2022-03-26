@@ -18,6 +18,7 @@ import static io.grpc.Status.*;
 public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 
 	private static final String DEADLINE_EXCEEDED_DESC = "Timed out!";
+	public static final String INVALID_SIGNATURE = "Invalid signature";
 
 	private final SignatureManager signatureManager;
 	private final Server server;
@@ -40,7 +41,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			long nonceToServer = signatureManager.decypherNonce(content.getCypheredNonce().toByteArray());
 			byte[] clientSignature = request.getSignature().toByteArray();
 			if (!signatureManager.verifySignature(publicKey, clientSignature, request.toByteArray())) {
-				responseObserver.onError(INVALID_ARGUMENT.withDescription("Invalid signature").asRuntimeException());
+				responseObserver.onError(INVALID_ARGUMENT.withDescription(INVALID_SIGNATURE).asRuntimeException());
 			}
 			server.openAccount(publicKey);
 			// Build Signed Response
@@ -74,7 +75,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			long nonceToServer = signatureManager.decypherNonce(content.getCypheredNonce().toByteArray());
 			byte[] clientSignature = request.getSignature().toByteArray();
 			if (!signatureManager.verifySignature(sourceKey, clientSignature, request.toByteArray())) {
-				responseObserver.onError(INVALID_ARGUMENT.withDescription("Invalid signature").asRuntimeException());
+				responseObserver.onError(INVALID_ARGUMENT.withDescription(INVALID_SIGNATURE).asRuntimeException());
 			}
 			server.sendAmount(sourceKey, destinationKey, amount);
 			// Build Signed Response
@@ -109,7 +110,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			long nonceToServer = signatureManager.decypherNonce(content.getCypheredNonce().toByteArray());
 			byte[] clientSignature = request.getSignature().toByteArray();
 			if (!signatureManager.verifySignature(publicKey, clientSignature, request.toByteArray())) {
-				responseObserver.onError(INVALID_ARGUMENT.withDescription("Invalid signature").asRuntimeException());
+				responseObserver.onError(INVALID_ARGUMENT.withDescription(INVALID_SIGNATURE).asRuntimeException());
 			}
 			int balance = server.getBalance(publicKey);
 			String transfers = server.getPendingTransfers(publicKey);
@@ -151,7 +152,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			long nonceToServer = signatureManager.decypherNonce(content.getCypheredNonce().toByteArray());
 			byte[] clientSignature = request.getSignature().toByteArray();
 			if (!signatureManager.verifySignature(publicKey, clientSignature, request.toByteArray())) {
-				responseObserver.onError(INVALID_ARGUMENT.withDescription("Invalid signature").asRuntimeException());
+				responseObserver.onError(INVALID_ARGUMENT.withDescription(INVALID_SIGNATURE).asRuntimeException());
 			}
 			int transferNum = content.getTransferNum();
 			server.receiveAmount(publicKey, transferNum);
@@ -187,7 +188,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			long nonceToServer = signatureManager.decypherNonce(content.getCypheredNonce().toByteArray());
 			byte[] clientSignature = request.getSignature().toByteArray();
 			if (!signatureManager.verifySignature(publicKey, clientSignature, request.toByteArray())) {
-				responseObserver.onError(INVALID_ARGUMENT.withDescription("Invalid signature").asRuntimeException());
+				responseObserver.onError(INVALID_ARGUMENT.withDescription(INVALID_SIGNATURE).asRuntimeException());
 			}
 			// Build Response
             AuditResponse.Builder builder = AuditResponse.newBuilder();

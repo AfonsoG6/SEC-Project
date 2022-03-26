@@ -1,10 +1,14 @@
 package pt.tecnico.sec.bftb.client;
 
+import pt.tecnico.sec.bftb.client.exceptions.KeyPairGenerationFailedException;
+import pt.tecnico.sec.bftb.client.exceptions.KeyPairLoadingFailedException;
+
 import java.security.cert.CertificateException;
 import java.util.Scanner;
 
 public class AppMain {
-	public static void main(String[] args) throws CertificateException {
+	public static void main(String[] args)
+			throws CertificateException, KeyPairLoadingFailedException, KeyPairGenerationFailedException {
 		System.out.println(AppMain.class.getSimpleName());
 
 		// Check number of arguments

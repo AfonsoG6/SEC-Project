@@ -1,8 +1,10 @@
 package pt.tecnico.sec.bftb.client.exceptions;
 
 public class CypherFailedException extends Exception {
+	private static final String DEFAULT_MESSAGE = "Cypher failed";
+
 	public CypherFailedException() {
-		super();
+		super(DEFAULT_MESSAGE);
 	}
 
 	public CypherFailedException(String message) {
@@ -14,6 +16,6 @@ public class CypherFailedException extends Exception {
 	}
 
 	public CypherFailedException(Throwable cause) {
-		super(cause);
+		super(DEFAULT_MESSAGE, cause);
 	}
 }

@@ -1,8 +1,10 @@
 package pt.tecnico.sec.bftb.client.exceptions;
 
 public class SignatureVerificationFailedException extends Exception {
+	private static final String DEFAULT_MESSAGE = "Verification of signature of the server failed";
+
 	public SignatureVerificationFailedException() {
-		super();
+		super(DEFAULT_MESSAGE);
 	}
 
 	public SignatureVerificationFailedException(String message) {
@@ -14,6 +16,6 @@ public class SignatureVerificationFailedException extends Exception {
 	}
 
 	public SignatureVerificationFailedException(Throwable cause) {
-		super(cause);
+		super(DEFAULT_MESSAGE, cause);
 	}
 }

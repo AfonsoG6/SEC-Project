@@ -4,8 +4,7 @@ import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
-import pt.tecnico.sec.bftb.client.exceptions.CypherFailedException;
-import pt.tecnico.sec.bftb.client.exceptions.SignatureVerificationFailedException;
+import pt.tecnico.sec.bftb.client.exceptions.*;
 import pt.tecnico.sec.bftb.server.grpc.Server.*;
 import pt.tecnico.sec.bftb.server.grpc.ServerServiceGrpc;
 
@@ -32,30 +31,33 @@ public class Client {
 			"- check                          Obtain the balance of the account, and the list of pending transfers%n" +
 			"- audit                          Obtain the full transaction history of the account%n" +
 			"- exit                           Exit the App%n";
+	public static final String OPERATION_SUCCESSFUL = "Operation successful!";
+	public static final String OPERATION_FAILED = "Operation failed!";
 
-	private final ManagedChannel channel;
 	private final ServerServiceGrpc.ServerServiceBlockingStub stub;
 	private final SignatureManager signatureManager;
 	private PublicKey userPublicKey;
 	private PrivateKey userPrivateKey;
-	private PublicKey serverPublicKey;
+	private final PublicKey serverPublicKey;
 
 	public Client(PublicKey userPublicKey, PrivateKey userPrivateKey, String serverURI) throws CertificateException {
-		this.channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
-		this.stub = ServerServiceGrpc.newBlockingStub(this.channel);
+		ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
+		this.stub = ServerServiceGrpc.newBlockingStub(channel);
 		this.signatureManager = new SignatureManager(userPrivateKey);
 		this.userPublicKey = userPublicKey;
 		this.userPrivateKey = userPrivateKey;
 		this.serverPublicKey = Resources.getServerPublicKey();
 	}
 
-	public Client(String serverURI) throws CertificateException {
+	public Client(String serverURI)
+			throws CertificateException, KeyPairLoadingFailedException, KeyPairGenerationFailedException {
 		// Default user ID is "user", just for simplicity
 		this(Resources.getPublicKeyByUserId("user"), Resources.getPrivateKeyByUserId("user"), serverURI);
 	}
 
 	// Returns true if the App should exit
-	public boolean parseAndExecCommand(String line) {
+	public boolean parseAndExecCommand(String line)
+			throws KeyPairLoadingFailedException, KeyPairGenerationFailedException {
 		try {
 			String[] tokens = line.split(" ");
 			switch (tokens[0]) {
@@ -80,7 +82,7 @@ public class Client {
 					else System.out.println(ERROR_NUMBER_OF_ARGUMENTS);
 					break;
 				case "send":
-					if (tokens.length == 3) sendAmount(Resources.getPublicKeyByUserId(tokens[1]), Integer.parseInt(tokens[2]));
+					if (tokens.length == 3) sendAmount(tokens[1], Integer.parseInt(tokens[2]));
 					else System.out.println(ERROR_NUMBER_OF_ARGUMENTS);
 					break;
 				case "check":
@@ -107,14 +109,14 @@ public class Client {
 		return false;
 	}
 
-	private void changeUser(String userId) {
+	private void changeUser(String userId) throws KeyPairLoadingFailedException, KeyPairGenerationFailedException {
 		userPrivateKey = Resources.getPrivateKeyByUserId(userId);
 		userPublicKey = Resources.getPublicKeyByUserId(userId);
 		signatureManager.setPrivateKey(userPrivateKey);
 		System.out.printf("User changed to '%s'%n", userId);
 	}
 
-	private long requestNonce() {
+	private long requestNonce() throws NonceRequestFailedException {
 		try {
 			GetNonceRequest request = GetNonceRequest.newBuilder().setPublicKey(ByteString.copyFrom(userPublicKey.getEncoded())).build();
 			GetNonceResponse response = stub.getNonce(request);
@@ -122,9 +124,8 @@ public class Client {
 			return signatureManager.decypherNonce(cypheredNonce);
 		}
 		catch (StatusRuntimeException | CypherFailedException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
-			throw new RuntimeException(e);
+			throw new NonceRequestFailedException(e);
 		}
 	}
 
@@ -138,6 +139,7 @@ public class Client {
 		}
 		catch (StatusRuntimeException e) {
 			System.out.println(ERROR_PREFIX + e.getStatus().getDescription());
+			System.out.println(OPERATION_FAILED);
 		}
 	}
 
@@ -156,28 +158,25 @@ public class Client {
 			signedBuilder.setSignature(ByteString.copyFrom(signature));
 			SignedOpenAccountResponse response = this.stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).openAccount(signedBuilder.build());
 			byte[] serverSignature = response.getSignature().toByteArray();
-			if (this.signatureManager.verifySignature(serverPublicKey, serverSignature)) {
-				System.out.println("Operation successful!");
+			if (this.signatureManager.isSignatureInvalid(serverPublicKey, serverSignature)) {
+				System.out.println(OPERATION_FAILED);
+				return;
 			}
-			else {
-				System.out.println("Operation failed!");
-			}
+			System.out.println(OPERATION_SUCCESSFUL);
 		}
 		catch (StatusRuntimeException e) {
 			System.out.println(ERROR_PREFIX + e.getStatus().getDescription());
+			System.out.println(OPERATION_FAILED);
 		}
-		catch (CypherFailedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		catch (SignatureVerificationFailedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		catch (CypherFailedException | NonceRequestFailedException | SignatureVerificationFailedException e) {
+			System.out.println(ERROR_PREFIX + e.getMessage());
+			System.out.println(OPERATION_FAILED);
 		}
 	}
 
-	public void sendAmount(PublicKey destinationPublicKey, int amount) {
+	public void sendAmount(String destUserId, int amount) {
 		try {
+			PublicKey destinationPublicKey = Resources.getPublicKeyByUserId(destUserId);
 			long nonceToClient = requestNonce();
 			SendAmountRequest.Builder builder = SendAmountRequest.newBuilder();
 			builder.setSourceKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
@@ -192,23 +191,19 @@ public class Client {
 			signedBuilder.setSignature(ByteString.copyFrom(signature));
 			SignedSendAmountResponse response = this.stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).sendAmount(signedBuilder.build());
 			byte[] serverSignature = response.getSignature().toByteArray();
-			if (this.signatureManager.verifySignature(serverPublicKey, serverSignature)) {
-				System.out.println("Operation successful!");
+			if (this.signatureManager.isSignatureInvalid(serverPublicKey, serverSignature)) {
+				System.out.println(OPERATION_FAILED);
+				return;
 			}
-			else {
-				System.out.println("Operation failed!");
-			}
+			System.out.println(OPERATION_SUCCESSFUL);
 		}
 		catch (StatusRuntimeException e) {
 			System.out.println(ERROR_PREFIX + e.getStatus().getDescription());
+			System.out.println(OPERATION_FAILED);
 		}
-		catch (CypherFailedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		catch (SignatureVerificationFailedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		catch (CypherFailedException | NonceRequestFailedException | SignatureVerificationFailedException | KeyPairLoadingFailedException | KeyPairGenerationFailedException e) {
+			System.out.println(ERROR_PREFIX + e.getMessage());
+			System.out.println(OPERATION_FAILED);
 		}
 	}
 
@@ -226,12 +221,11 @@ public class Client {
 			signedBuilder.setSignature(ByteString.copyFrom(signature));
 			SignedCheckAccountResponse response = this.stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).checkAccount(signedBuilder.build());
 			byte[] serverSignature = response.getSignature().toByteArray();
-			if (this.signatureManager.verifySignature(serverPublicKey, serverSignature, response.getContent().toByteArray())) {
-				System.out.println("Operation successful!");
+			if (this.signatureManager.isSignatureInvalid(serverPublicKey, serverSignature, response.getContent().toByteArray())) {
+				System.out.println(OPERATION_FAILED);
+				return;
 			}
-			else {
-				System.out.println("Operation failed!");
-			}
+			System.out.println(OPERATION_SUCCESSFUL);
 			System.out.println("Balance: " + response.getContent().getBalance());
 			System.out.println("Pending Transfers: ");
 			System.out.println(response.getContent().getPendingTransfers());
@@ -239,14 +233,11 @@ public class Client {
 		}
 		catch (StatusRuntimeException e) {
 			System.out.println(ERROR_PREFIX + e.getStatus().getDescription());
+			System.out.println(OPERATION_FAILED);
 		}
-		catch (CypherFailedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		catch (SignatureVerificationFailedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		catch (CypherFailedException | NonceRequestFailedException | SignatureVerificationFailedException e) {
+			System.out.println(ERROR_PREFIX + e.getMessage());
+			System.out.println(OPERATION_FAILED);
 		}
 	}
 
@@ -265,23 +256,17 @@ public class Client {
 			signedBuilder.setSignature(ByteString.copyFrom(signature));
 			SignedReceiveAmountResponse response = this.stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).receiveAmount(signedBuilder.build());
 			byte[] serverSignature = response.getSignature().toByteArray();
-			if (this.signatureManager.verifySignature(serverPublicKey, serverSignature)) {
-				System.out.println("Operation successful!");
+			if (this.signatureManager.isSignatureInvalid(serverPublicKey, serverSignature)) {
+				System.out.println(OPERATION_FAILED);
+				return;
 			}
-			else {
-				System.out.println("Operation failed!");
-			}
+			System.out.println(OPERATION_SUCCESSFUL);
 		}
 		catch (StatusRuntimeException e) {
 			System.out.println(ERROR_PREFIX + e.getStatus().getDescription());
 		}
-		catch (CypherFailedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		catch (SignatureVerificationFailedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		catch (CypherFailedException | NonceRequestFailedException | SignatureVerificationFailedException e) {
+			System.out.println(ERROR_PREFIX + e.getMessage());
 		}
 	}
 
@@ -299,24 +284,21 @@ public class Client {
 			signedBuilder.setSignature(ByteString.copyFrom(signature));
 			SignedAuditResponse response = this.stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).audit(signedBuilder.build());
 			byte[] serverSignature = response.getSignature().toByteArray();
-			if (this.signatureManager.verifySignature(serverPublicKey, serverSignature, response.getContent().toByteArray())) {
-				System.out.println("Operation successful!");
+			if (this.signatureManager.isSignatureInvalid(serverPublicKey, serverSignature, response.getContent().toByteArray())) {
+				System.out.println(OPERATION_FAILED);
+				return;
 			}
-			else {
-				System.out.println("Operation failed!");
-			}
+			System.out.println(OPERATION_SUCCESSFUL);
 			System.out.println("Transaction History: ");
 			System.out.println(response.getContent().getHistory());
 		}
 		catch (StatusRuntimeException e) {
 			System.out.println(ERROR_PREFIX + e.getStatus().getDescription());
+			System.out.println(OPERATION_FAILED);
 		}
-		catch (CypherFailedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		catch (SignatureVerificationFailedException e) {
-			e.printStackTrace();
+		catch (CypherFailedException | NonceRequestFailedException | SignatureVerificationFailedException e) {
+			System.out.println(ERROR_PREFIX + e.getMessage());
+			System.out.println(OPERATION_FAILED);
 		}
 	}
 

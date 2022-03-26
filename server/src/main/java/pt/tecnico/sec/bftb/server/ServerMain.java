@@ -5,7 +5,6 @@ import io.grpc.ServerBuilder;
 import pt.tecnico.sec.bftb.server.exceptions.PrivateKeyLoadingFailedException;
 
 import java.io.IOException;
-import java.security.NoSuchAlgorithmException;
 
 public class ServerMain {
 
