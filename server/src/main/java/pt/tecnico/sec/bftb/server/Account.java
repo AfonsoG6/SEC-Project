@@ -9,14 +9,14 @@ public class Account {
 
 	private final PublicKey publicKey;
 	private int balance;
-	private final ArrayList<Transfer> pendingTransfers;
-	private final ArrayList<Transfer> approvedTransfers;
+	private final ArrayList<Transfer> pendingIncomingTransfers;
+	private final ArrayList<Transfer> transferHistory;
 
 	public Account(PublicKey publicKey){
 		this.publicKey = publicKey;
 		this.balance = INITIAL_BALANCE;
-		this.pendingTransfers = new ArrayList<>();
-		this.approvedTransfers = new ArrayList<>();
+		this.pendingIncomingTransfers = new ArrayList<>();
+		this.transferHistory = new ArrayList<>();
 	}
 
 	// Returns the account's balance
@@ -47,50 +47,48 @@ public class Account {
 
 	// Adds a new pending transfer from a given sourceKey and amount
 
-	public void addPendingTransfer(PublicKey sourceKey, int amount) {
-		pendingTransfers.add(new Transfer(sourceKey, this.publicKey, amount));
+	public void addPendingIncomingTransfer(Transfer transfer) {
+		pendingIncomingTransfers.add(transfer);
 	}
 
-	// Returns a pending transfer specified by an index
-
-	public Transfer getPendingTransfer(int i) {
-		return pendingTransfers.get(i);
+	public void addTransfer(Transfer transfer) {
+		transferHistory.add(transfer);
 	}
 
 	// Returns all pending transfers concatenated into a string
 
-	public String getPendingTransfers() {
-		String pT = "";
-		for (int i = 0; i < pendingTransfers.size(); i++) {
-			pT += "TRANSFER " + i + ": " + this.getPendingTransfer(i).toString() + "\n";
+	public String getPendingIncomingTransfersString() {
+		String pendingTransfersString = "";
+		for (int i = 0; i < pendingIncomingTransfers.size(); i++) {
+			pendingTransfersString += "INCOMING TRANSFER " + i + ": " + pendingIncomingTransfers.get(i).toString() + "\n";
 		}
-		return pT;
+		return pendingTransfersString;
 	}
 
-	public void approveTransfer(int i) {
-		Transfer transfer = this.getPendingTransfer(i);
-		pendingTransfers.remove(i);
+	public Transfer getPendingTransfer(int transferNum) {
+		return pendingIncomingTransfers.get(transferNum);
+	}
+
+	public void approveIncomingTransfer(int i) {
+		Transfer transfer = pendingIncomingTransfers.get(i);
+		pendingIncomingTransfers.remove(i);
 		transfer.approve();
-		approvedTransfers.add(transfer);
+		transferHistory.add(transfer);
 	}
 
 	public boolean isPendingTransferNumValid(int num) {
-		return num >= 0 && num < this.pendingTransfers.size();
-	}
-
-	// Returns an approved transfer specified by an index
-
-	public Transfer getApprovedTransfer(int i) {
-		return approvedTransfers.get(i);
+		return num >= 0 && num < pendingIncomingTransfers.size();
 	}
 
 	// Returns transfer history concatenated into a string
 
-	public String getApprovedTransfers() {
-		String aT = "";
-		for (int i = 0; i < approvedTransfers.size(); i++) {
-			aT += "TRANSFER " + i + ": " + this.getApprovedTransfer(i).toString() + "\n";
+	public String getTransferHistory() {
+		StringBuilder historyString = new StringBuilder();
+		for (int i = 0; i < transferHistory.size(); i++) {
+			Transfer transfer = transferHistory.get(i);
+			String direction = (publicKey.equals(transfer.getSourceKey()))? "OUTGOING" : "INCOMING";
+			historyString.append("%s TRANSFER %d: %s%n".formatted(direction, i, transfer.toString()));
 		}
-		return aT;
+		return historyString.toString();
 	}
 }
