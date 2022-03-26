@@ -118,7 +118,6 @@ public class Client {
 		try {
 			GetNonceRequest request = GetNonceRequest.newBuilder().setPublicKey(ByteString.copyFrom(userPublicKey.getEncoded())).build();
 			GetNonceResponse response = stub.getNonce(request);
-			channel.shutdown();
 			byte[] cypheredNonce = response.getCypheredNonce().toByteArray();
 			return signatureManager.decypherNonce(cypheredNonce);
 		}
@@ -140,7 +139,6 @@ public class Client {
 		catch (StatusRuntimeException e) {
 			System.out.println(ERROR_PREFIX + e.getStatus().getDescription());
 		}
-		channel.shutdown();
 	}
 
 	// Open Account
@@ -176,7 +174,6 @@ public class Client {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		channel.shutdown();
 	}
 
 	public void sendAmount(PublicKey destinationPublicKey, int amount) {
@@ -213,7 +210,6 @@ public class Client {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		channel.shutdown();
 	}
 
 	public void checkAccount() {
@@ -252,7 +248,6 @@ public class Client {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		channel.shutdown();
 	}
 
 	public void receiveAmount(int transferNum) {
