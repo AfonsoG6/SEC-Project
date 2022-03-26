@@ -23,7 +23,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 	private final SignatureManager signatureManager;
 	private final Server server;
 
-	public ServerServiceImpl() throws PrivateKeyLoadingFailedException {
+	public ServerServiceImpl() throws PrivateKeyLoadingFailedException, AccountLoadingFailedException {
 		this.signatureManager = new SignatureManager();
 		this.server = new Server();
     }

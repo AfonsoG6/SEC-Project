@@ -1,16 +1,22 @@
 package pt.tecnico.sec.bftb.server;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.security.PublicKey;
 import java.util.Base64;
 
-public class Transfer {
+public class Transfer implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 202203261535L;
 
-    private PublicKey sourceKey;
-    private PublicKey destinationKey;
-    private int amount;
+    private final long id;
+    private final PublicKey sourceKey;
+    private final PublicKey destinationKey;
+    private final int amount;
     private boolean pending;
 
-    public Transfer(PublicKey sourceKey, PublicKey destinationKey, int amount) {
+    public Transfer(long id, PublicKey sourceKey, PublicKey destinationKey, int amount) {
+        this.id = id;
         this.sourceKey = sourceKey;
         this.destinationKey = destinationKey;
         this.amount = amount;
@@ -40,5 +46,9 @@ public class Transfer {
                 + Base64.getEncoder().encodeToString(this.sourceKey.getEncoded())
                 + " to "
                 + Base64.getEncoder().encodeToString(this.destinationKey.getEncoded());
+    }
+
+    public long getID() {
+        return this.id;
     }
 }

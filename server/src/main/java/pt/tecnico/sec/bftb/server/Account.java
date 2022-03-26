@@ -1,11 +1,16 @@
 package pt.tecnico.sec.bftb.server;
 
+import java.io.Serial;
+import java.io.Serializable;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.util.ArrayList;
 
-public class Account {
-
-	public static final int INITIAL_BALANCE = 100;
+public class Account implements Serializable {
+	@Serial
+	private static final long serialVersionUID = 202203261536L;
+	private static final int INITIAL_BALANCE = 100;
 
 	private final PublicKey publicKey;
 	private int balance;
@@ -23,6 +28,10 @@ public class Account {
 
 	public int getBalance() {
 		return balance;
+	}
+
+	public PublicKey getPublicKey() {
+		return publicKey;
 	}
 
 	// Checks if a given amount can be decremented from the account's balance
@@ -76,6 +85,13 @@ public class Account {
 		transferHistory.add(transfer);
 	}
 
+	public void approveOutgoingTransfer(long transferID) {
+		transferHistory.stream()
+				.filter(transfer -> transfer.getID() == transferID)
+				.findFirst()
+				.ifPresent(Transfer::approve);
+	}
+
 	public boolean isPendingTransferNumValid(int num) {
 		return num >= 0 && num < pendingIncomingTransfers.size();
 	}
@@ -90,5 +106,10 @@ public class Account {
 			historyString.append("%s TRANSFER %d: %s%n".formatted(direction, i, transfer.toString()));
 		}
 		return historyString.toString();
+	}
+
+	public String getHash() throws NoSuchAlgorithmException {
+		byte[] hash = MessageDigest.getInstance("SHA-256").digest(publicKey.getEncoded());
+		return String.format("%064x", new java.math.BigInteger(1, hash));
 	}
 }

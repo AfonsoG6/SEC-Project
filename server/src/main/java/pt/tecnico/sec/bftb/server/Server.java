@@ -1,22 +1,36 @@
 package pt.tecnico.sec.bftb.server;
 
-import pt.tecnico.sec.bftb.server.exceptions.AccountDoesNotExistException;
-import pt.tecnico.sec.bftb.server.exceptions.AmountTooLowException;
-import pt.tecnico.sec.bftb.server.exceptions.BalanceTooLowException;
-import pt.tecnico.sec.bftb.server.exceptions.InvalidTransferNumberException;
+import pt.tecnico.sec.bftb.server.exceptions.*;
 
 import java.security.PublicKey;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Server {
     private final ConcurrentHashMap<PublicKey, Account> accounts;
+    private long transferIDCounter;
 
-    public Server() {
+    public Server() throws AccountLoadingFailedException {
         this.accounts = new ConcurrentHashMap<>();
+        this.transferIDCounter = 0;
+        List<Account> accountsList = Resources.loadAccounts();
+        for (Account account : accountsList) {
+            accounts.put(account.getPublicKey(), account);
+        }
     }
 
     public void openAccount(PublicKey publicKey) {
-        accounts.putIfAbsent(publicKey, new Account(publicKey));
+        Account newAccount = new Account(publicKey);
+        accounts.putIfAbsent(publicKey, newAccount);
+        // Backup the state of the relevant objects
+        try {
+            Resources.saveAccount(newAccount);
+        }
+        catch (AccountSavingFailedException e) {
+            // If the backup fails, we should revert the changes
+            // TODO For now we don't
+            e.printStackTrace();
+        }
     }
 
     public Account findAccount(PublicKey publicKey) {
@@ -48,9 +62,25 @@ public class Server {
         Account destination = findAccount(destinationKey);
         if (destination == null) throw new AccountDoesNotExistException();
         if (!source.canDecrement(amount)) throw new BalanceTooLowException();
-        Transfer transfer = new Transfer(sourceKey, destinationKey, amount);
+        long newID = getNewIDForTransfer();
+        Transfer transfer = new Transfer(newID, sourceKey, destinationKey, amount);
         destination.addPendingIncomingTransfer(transfer);
         source.addTransfer(transfer);
+        // Backup the state of the relevant objects
+        try {
+            Resources.saveTransfer(transfer);
+            Resources.saveAccount(source);
+            Resources.saveAccount(destination);
+        }
+        catch (TransferSavingFailedException | AccountSavingFailedException e) {
+            // If the backup fails, we should revert the changes
+            // TODO For now we don't
+            e.printStackTrace();
+        }
+    }
+
+    private synchronized long getNewIDForTransfer() {
+        return transferIDCounter++;
     }
 
     // Receive Amount:
@@ -69,7 +99,19 @@ public class Server {
         // TRANSACTION
         source.decrementBalance(amount);
         destination.incrementBalance(amount);
-        destination.approveIncomingTransfer(0);
+        destination.approveIncomingTransfer(transferNum);
+        source.approveOutgoingTransfer(transfer.getID());
+        // Backup the state of the relevant objects
+        try {
+            Resources.saveTransfer(transfer);
+            Resources.saveAccount(source);
+            Resources.saveAccount(destination);
+        }
+        catch (TransferSavingFailedException | AccountSavingFailedException e) {
+            // If the backup fails, we should revert the changes
+            // TODO For now we don't
+            e.printStackTrace();
+        }
     }
 
     // Audit:
