@@ -5,9 +5,9 @@ import java.util.ArrayList;
 
 public class Account {
 
-	public static final int INITIAL_BALANCE = 10;
+	public static final int INITIAL_BALANCE = 100;
 
-	private PublicKey publicKey;
+	private final PublicKey publicKey;
 	private int balance;
 	private final ArrayList<Transfer> pendingTransfers;
 	private final ArrayList<Transfer> approvedTransfers;

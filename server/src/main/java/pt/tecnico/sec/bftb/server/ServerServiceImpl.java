@@ -40,8 +40,9 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
 			long nonceToServer = signatureManager.decypherNonce(content.getCypheredNonce().toByteArray());
 			byte[] clientSignature = request.getSignature().toByteArray();
-			if (!signatureManager.verifySignature(publicKey, clientSignature, request.toByteArray())) {
+			if (signatureManager.isSignatureValid(publicKey, clientSignature, content.toByteArray())) {
 				responseObserver.onError(INVALID_ARGUMENT.withDescription(INVALID_SIGNATURE).asRuntimeException());
+				return;
 			}
 			server.openAccount(publicKey);
 			// Build Signed Response
@@ -69,13 +70,14 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			SendAmountRequest content = request.getContent();
 			byte[] sourceKeyBytes = content.getSourceKey().toByteArray();
 			PublicKey sourceKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(sourceKeyBytes));
-			byte[] destinationKeyBytes = content.getSourceKey().toByteArray();
+			byte[] destinationKeyBytes = content.getDestinationKey().toByteArray();
 			PublicKey destinationKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(destinationKeyBytes));
 			int amount = content.getAmount();
 			long nonceToServer = signatureManager.decypherNonce(content.getCypheredNonce().toByteArray());
 			byte[] clientSignature = request.getSignature().toByteArray();
-			if (!signatureManager.verifySignature(sourceKey, clientSignature, request.toByteArray())) {
+			if (signatureManager.isSignatureValid(sourceKey, clientSignature, content.toByteArray())) {
 				responseObserver.onError(INVALID_ARGUMENT.withDescription(INVALID_SIGNATURE).asRuntimeException());
+				return;
 			}
 			server.sendAmount(sourceKey, destinationKey, amount);
 			// Build Signed Response
@@ -109,8 +111,9 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
 			long nonceToServer = signatureManager.decypherNonce(content.getCypheredNonce().toByteArray());
 			byte[] clientSignature = request.getSignature().toByteArray();
-			if (!signatureManager.verifySignature(publicKey, clientSignature, request.toByteArray())) {
+			if (signatureManager.isSignatureValid(publicKey, clientSignature, content.toByteArray())) {
 				responseObserver.onError(INVALID_ARGUMENT.withDescription(INVALID_SIGNATURE).asRuntimeException());
+				return;
 			}
 			int balance = server.getBalance(publicKey);
 			String transfers = server.getPendingTransfers(publicKey);
@@ -151,8 +154,9 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
 			long nonceToServer = signatureManager.decypherNonce(content.getCypheredNonce().toByteArray());
 			byte[] clientSignature = request.getSignature().toByteArray();
-			if (!signatureManager.verifySignature(publicKey, clientSignature, request.toByteArray())) {
+			if (signatureManager.isSignatureValid(publicKey, clientSignature, content.toByteArray())) {
 				responseObserver.onError(INVALID_ARGUMENT.withDescription(INVALID_SIGNATURE).asRuntimeException());
+				return;
 			}
 			int transferNum = content.getTransferNum();
 			server.receiveAmount(publicKey, transferNum);
@@ -187,8 +191,9 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
 			long nonceToServer = signatureManager.decypherNonce(content.getCypheredNonce().toByteArray());
 			byte[] clientSignature = request.getSignature().toByteArray();
-			if (!signatureManager.verifySignature(publicKey, clientSignature, request.toByteArray())) {
+			if (signatureManager.isSignatureValid(publicKey, clientSignature, content.toByteArray())) {
 				responseObserver.onError(INVALID_ARGUMENT.withDescription(INVALID_SIGNATURE).asRuntimeException());
+				return;
 			}
 			// Build Response
             AuditResponse.Builder builder = AuditResponse.newBuilder();

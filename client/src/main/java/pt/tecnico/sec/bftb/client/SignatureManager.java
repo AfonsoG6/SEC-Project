@@ -14,7 +14,7 @@ import java.util.Arrays;
 import java.util.Random;
 
 public class SignatureManager {
-	public static final String CIPHER_TRANSFORMATION = "RSA/CBC/PKCS1Padding";
+	public static final String CIPHER_TRANSFORMATION = "RSA/ECB/PKCS1Padding";
 	private final Random randomGenerator;
 	private PrivateKey privateKey;
 	private long currentNonce;

@@ -35,10 +35,10 @@ public class Transfer {
 
     @Override
     public String toString() {
-        return ((this.pending) ? "[Pending] " : "[Approved] ")
+        return ((this.pending) ? "[Pending] " : "")
+                + " $" + this.amount + " from "
                 + Base64.getEncoder().encodeToString(this.sourceKey.getEncoded())
-                + "--$" + this.amount + "-->"
+                + " to "
                 + Base64.getEncoder().encodeToString(this.destinationKey.getEncoded());
     }
-    
 }

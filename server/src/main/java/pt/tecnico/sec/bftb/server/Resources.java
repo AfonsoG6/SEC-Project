@@ -11,8 +11,6 @@ import java.security.cert.CertificateException;
 public class Resources {
 
 	private static final String CRYPTO_PATH = "crypto";
-	private static final String PUB_KEY_FILENAME = "pubkey.der";
-	private static final String PRIV_KEY_FILENAME = "privkey.der";
 	private static final String KEYSTORE_FILENAME = "keystore.jks";
 	private static final String KEYSTORE_PWD = "sec2122";
 
@@ -25,7 +23,7 @@ public class Resources {
 			assert keyStream != null;
 			KeyStore ks = KeyStore.getInstance("JKS");
 			ks.load(keyStream, KEYSTORE_PWD.toCharArray());
-			return (PrivateKey) ks.getKey("private", KEYSTORE_PWD.toCharArray());
+			return (PrivateKey) ks.getKey("1", KEYSTORE_PWD.toCharArray());
 		}
 		catch (KeyStoreException | UnrecoverableKeyException | CertificateException | IOException | NoSuchAlgorithmException e) {
 			throw new PrivateKeyLoadingFailedException(e);

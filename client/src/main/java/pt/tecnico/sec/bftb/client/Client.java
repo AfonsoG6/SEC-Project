@@ -18,6 +18,7 @@ public class Client {
 
 	private static final long DEADLINE_SEC = 10;    // Timeout deadline in seconds
 	public static final String ASK_FOR_HELP = "Use the command 'help' to see the available commands.";
+	public static final String SERVER_ERROR_PREFIX = "SERVER ERROR: ";
 	public static final String ERROR_PREFIX = "ERROR: ";
 	public static final String ERROR_NUMBER_OF_ARGUMENTS = "ERROR: Invalid number of arguments! "+ASK_FOR_HELP;
 	public static final String UNKNOWN_COMMAND = "ERROR: Unknown command! "+ASK_FOR_HELP;
@@ -123,8 +124,11 @@ public class Client {
 			byte[] cypheredNonce = response.getCypheredNonce().toByteArray();
 			return signatureManager.decypherNonce(cypheredNonce);
 		}
-		catch (StatusRuntimeException | CypherFailedException e) {
-			e.printStackTrace();
+		catch (StatusRuntimeException e) {
+			System.out.println(SERVER_ERROR_PREFIX + e.getMessage());
+			throw new NonceRequestFailedException(e);
+		}
+		catch (CypherFailedException e) {
 			throw new NonceRequestFailedException(e);
 		}
 	}
@@ -138,7 +142,7 @@ public class Client {
 			System.out.println(output);
 		}
 		catch (StatusRuntimeException e) {
-			System.out.println(ERROR_PREFIX + e.getStatus().getDescription());
+			System.out.println(SERVER_ERROR_PREFIX + e.getStatus().getDescription());
 			System.out.println(OPERATION_FAILED);
 		}
 	}
@@ -165,7 +169,7 @@ public class Client {
 			System.out.println(OPERATION_SUCCESSFUL);
 		}
 		catch (StatusRuntimeException e) {
-			System.out.println(ERROR_PREFIX + e.getStatus().getDescription());
+			System.out.println(SERVER_ERROR_PREFIX + e.getStatus().getDescription());
 			System.out.println(OPERATION_FAILED);
 		}
 		catch (CypherFailedException | NonceRequestFailedException | SignatureVerificationFailedException e) {
@@ -198,7 +202,7 @@ public class Client {
 			System.out.println(OPERATION_SUCCESSFUL);
 		}
 		catch (StatusRuntimeException e) {
-			System.out.println(ERROR_PREFIX + e.getStatus().getDescription());
+			System.out.println(SERVER_ERROR_PREFIX + e.getStatus().getDescription());
 			System.out.println(OPERATION_FAILED);
 		}
 		catch (CypherFailedException | NonceRequestFailedException | SignatureVerificationFailedException | KeyPairLoadingFailedException | KeyPairGenerationFailedException e) {
@@ -232,7 +236,7 @@ public class Client {
 
 		}
 		catch (StatusRuntimeException e) {
-			System.out.println(ERROR_PREFIX + e.getStatus().getDescription());
+			System.out.println(SERVER_ERROR_PREFIX + e.getStatus().getDescription());
 			System.out.println(OPERATION_FAILED);
 		}
 		catch (CypherFailedException | NonceRequestFailedException | SignatureVerificationFailedException e) {
@@ -263,7 +267,7 @@ public class Client {
 			System.out.println(OPERATION_SUCCESSFUL);
 		}
 		catch (StatusRuntimeException e) {
-			System.out.println(ERROR_PREFIX + e.getStatus().getDescription());
+			System.out.println(SERVER_ERROR_PREFIX + e.getStatus().getDescription());
 		}
 		catch (CypherFailedException | NonceRequestFailedException | SignatureVerificationFailedException e) {
 			System.out.println(ERROR_PREFIX + e.getMessage());
@@ -293,7 +297,7 @@ public class Client {
 			System.out.println(response.getContent().getHistory());
 		}
 		catch (StatusRuntimeException e) {
-			System.out.println(ERROR_PREFIX + e.getStatus().getDescription());
+			System.out.println(SERVER_ERROR_PREFIX + e.getStatus().getDescription());
 			System.out.println(OPERATION_FAILED);
 		}
 		catch (CypherFailedException | NonceRequestFailedException | SignatureVerificationFailedException e) {

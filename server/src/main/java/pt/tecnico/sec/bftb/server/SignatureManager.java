@@ -17,7 +17,7 @@ import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class SignatureManager {
-	public static final String CIPHER_TRANSFORMATION = "RSA/CBC/PKCS1Padding";
+	public static final String CIPHER_TRANSFORMATION = "RSA/ECB/PKCS1Padding";
 	private final Random randomGenerator;
 	private final PrivateKey privateKey;
 	private final Map<PublicKey, Long> currentNonces;
@@ -62,7 +62,7 @@ public class SignatureManager {
 		return cypherNonce(peerPublicKey, nonce);
 	}
 
-	public boolean verifySignature(PublicKey peerPublicKey, byte[] signature, byte[] content) throws
+	public boolean isSignatureValid(PublicKey peerPublicKey, byte[] signature, byte[] content) throws
 			SignatureVerificationFailedException {
 		try {
 			if (!currentNonces.containsKey(peerPublicKey)) throw new SignatureVerificationFailedException("Account does not have a currently usable nonce");
@@ -79,18 +79,18 @@ public class SignatureManager {
 			// Compare the received hash with the expected one
 			if (Arrays.equals(expectedHash, receivedHash)) {
 				currentNonces.remove(peerPublicKey);
-				return true;
+				return false;
 			}
-			else return false;
+			else return true;
 		}
 		catch (NoSuchAlgorithmException | InvalidKeyException | BadPaddingException | IllegalBlockSizeException | NoSuchPaddingException | BufferUnderflowException e) {
 			throw new SignatureVerificationFailedException(e);
 		}
 	}
 
-	public boolean verifySignature(PublicKey peerPublicKey, byte[] signature) throws
+	public boolean isSignatureValid(PublicKey peerPublicKey, byte[] signature) throws
 			SignatureVerificationFailedException {
-		return verifySignature(peerPublicKey, signature, new byte[0]);
+		return isSignatureValid(peerPublicKey, signature, new byte[0]);
 	}
 
 	public byte[] sign(long nonce, byte[] content) throws CypherFailedException {
