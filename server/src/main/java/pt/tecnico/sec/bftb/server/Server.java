@@ -14,15 +14,16 @@ public class Server {
 	public Server() throws ServerInitializationFailedException {
 		try {
 			Resources.init();
-			this.transferIDCounter = 0;
 			this.accounts = new ConcurrentHashMap<>();
 			List<Account> accountsList = Resources.loadAccounts();
 			for (Account account : accountsList) {
 				this.accounts.put(account.getPublicKey(), account);
 			}
+			this.transferIDCounter = 0;
 			this.transfers = new ConcurrentHashMap<>();
 			List<Transfer> transfersList = Resources.loadTransfers();
 			for (Transfer transfer : transfersList) {
+				this.transferIDCounter = Math.max(this.transferIDCounter, transfer.getID());
 				this.transfers.put(transfer.getID(), transfer);
 			}
 		}
@@ -62,7 +63,7 @@ public class Server {
 	}
 
 	private synchronized long getNewIDForTransfer() {
-		return transferIDCounter++;
+		return ++transferIDCounter;
 	}
 
 	// Check Account (part 1):
