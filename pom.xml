@@ -32,8 +32,8 @@
 
         <group.id>sec</group.id>
 
-        <server.host>localhost</server.host>
-        <server.port>29292</server.port>
+        <svhost>localhost</svhost>
+        <svport>29292</svport>
     </properties>
 
     <modules>
@@ -41,8 +41,6 @@
         <module>contract</module>
         <module>server</module>
     </modules>
-
-    <dependencies></dependencies>
 
     <build>
         <plugins>

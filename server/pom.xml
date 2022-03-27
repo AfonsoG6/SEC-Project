@@ -65,7 +65,7 @@
                 <configuration>
                     <mainClass>${mainclass}</mainClass>
                     <arguments>
-                        <argument>${server.port}</argument>
+                        <argument>${svport}</argument>
                     </arguments>
                 </configuration>
             </plugin>
