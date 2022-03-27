@@ -65,7 +65,8 @@ public class SignatureManager {
 	public boolean isSignatureValid(PublicKey peerPublicKey, byte[] signature, byte[] content) throws
 			SignatureVerificationFailedException {
 		try {
-			if (!currentNonces.containsKey(peerPublicKey)) throw new SignatureVerificationFailedException("Account does not have a currently usable nonce");
+			if (!currentNonces.containsKey(peerPublicKey))
+				throw new SignatureVerificationFailedException("Account does not have a currently usable nonce");
 			// Get nonce
 			long nonce = currentNonces.get(peerPublicKey);
 			// Concatenate nonce and content

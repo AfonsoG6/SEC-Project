@@ -16,12 +16,11 @@ import java.util.regex.PatternSyntaxException;
 
 public class Client {
 
-	private static final long DEADLINE_SEC = 10;    // Timeout deadline in seconds
 	public static final String ASK_FOR_HELP = "Use the command 'help' to see the available commands.";
 	public static final String SERVER_ERROR_PREFIX = "SERVER ERROR: ";
 	public static final String ERROR_PREFIX = "ERROR: ";
-	public static final String ERROR_NUMBER_OF_ARGUMENTS = "ERROR: Invalid number of arguments! "+ASK_FOR_HELP;
-	public static final String UNKNOWN_COMMAND = "ERROR: Unknown command! "+ASK_FOR_HELP;
+	public static final String ERROR_NUMBER_OF_ARGUMENTS = "ERROR: Invalid number of arguments! " + ASK_FOR_HELP;
+	public static final String UNKNOWN_COMMAND = "ERROR: Unknown command! " + ASK_FOR_HELP;
 	public static final String HELP_STRING = "Available Commands:%n" +
 			"- ping <one word>                Check if server is responsive%n" +
 			"- user <username>                Change to another user%n" +
@@ -34,12 +33,12 @@ public class Client {
 			"- exit                           Exit the App%n";
 	public static final String OPERATION_SUCCESSFUL = "Operation successful!";
 	public static final String OPERATION_FAILED = "Operation failed!";
-
+	private static final long DEADLINE_SEC = 10;    // Timeout deadline in seconds
 	private final ServerServiceGrpc.ServerServiceBlockingStub stub;
 	private final SignatureManager signatureManager;
+	private final PublicKey serverPublicKey;
 	private PublicKey userPublicKey;
 	private PrivateKey userPrivateKey;
-	private final PublicKey serverPublicKey;
 
 	public Client(PublicKey userPublicKey, PrivateKey userPrivateKey, String serverURI) throws CertificateException {
 		ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
@@ -104,7 +103,7 @@ public class Client {
 					break;
 			}
 		}
-		catch (NumberFormatException| PatternSyntaxException e) {
+		catch (NumberFormatException | PatternSyntaxException e) {
 			System.out.println(UNKNOWN_COMMAND);
 		}
 		return false;

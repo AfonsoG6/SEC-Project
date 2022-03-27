@@ -11,7 +11,7 @@ public class ServerMain {
 	public static void main(String[] args)
 			throws IOException, InterruptedException, ServerInitializationFailedException {
 		System.out.println(ServerMain.class.getSimpleName());
-		
+
 		// receive and print arguments
 		System.out.printf("Received %d arguments%n", args.length);
 		for (int i = 0; i < args.length; i++) {

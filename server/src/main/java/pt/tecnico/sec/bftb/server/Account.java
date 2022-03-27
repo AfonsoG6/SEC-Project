@@ -15,11 +15,11 @@ public class Account implements Serializable {
 	private static final int INITIAL_BALANCE = 100;
 
 	private final PublicKey publicKey;
-	private int balance;
 	private final ArrayList<Long> pendingIncomingTransfers;
 	private final ArrayList<Long> transferHistory;
+	private int balance;
 
-	public Account(PublicKey publicKey){
+	public Account(PublicKey publicKey) {
 		this.publicKey = publicKey;
 		this.balance = INITIAL_BALANCE;
 		this.pendingIncomingTransfers = new ArrayList<>();

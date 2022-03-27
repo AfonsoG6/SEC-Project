@@ -20,11 +20,11 @@ import java.security.spec.X509EncodedKeySpec;
 
 public class Resources {
 
+	public static final String PRIVKEY_FILENAME = "private.key";
+	public static final String PUBKEY_FILENAME = "public.key";
 	private static final String KEYPAIR_PATH = "keypairs";
 	private static final String SERVER_CERT_PATH = "servercert";
 	private static final String SERVER_CERT_FILENAME = "cert.pem";
-	public static final String PRIVKEY_FILENAME = "private.key";
-	public static final String PUBKEY_FILENAME = "public.key";
 
 	private Resources() { /* empty */ }
 

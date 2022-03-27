@@ -79,10 +79,12 @@ public class Resources {
 	public static Account restorePreviousState(Account account) throws RestorePreviousStateFailedException {
 		try {
 			String pathString = Path.of(getAbsolutePathOfResource(ACCOUNTS_PATH), account.getHash()).toString();
-			if (!Files.exists(Paths.get(pathString + ".old"))) throw new RestorePreviousStateFailedException("No previous state to restore");
+			if (!Files.exists(Paths.get(pathString + ".old")))
+				throw new RestorePreviousStateFailedException("No previous state to restore");
 			File oldFile = new File(pathString + ".old");
 			boolean renameSuccessful = oldFile.renameTo(new File(pathString));
-			if (!renameSuccessful) throw new RestorePreviousStateFailedException("Unable to rename old backup file in order to restore previous state");
+			if (!renameSuccessful)
+				throw new RestorePreviousStateFailedException("Unable to rename old backup file in order to restore previous state");
 			return loadAccount(new File(pathString));
 		}
 		catch (URISyntaxException | NoSuchAlgorithmException | AccountLoadingFailedException e) {
@@ -93,10 +95,12 @@ public class Resources {
 	public static Transfer restorePreviousState(Transfer transfer) throws RestorePreviousStateFailedException {
 		try {
 			String pathString = Path.of(getAbsolutePathOfResource(TRANSFERS_PATH), Long.toString(transfer.getID())).toString();
-			if (!Files.exists(Paths.get(pathString + ".old"))) throw new RestorePreviousStateFailedException("No previous state to restore");
+			if (!Files.exists(Paths.get(pathString + ".old")))
+				throw new RestorePreviousStateFailedException("No previous state to restore");
 			File oldFile = new File(pathString + ".old");
 			boolean renameSuccessful = oldFile.renameTo(new File(pathString));
-			if (!renameSuccessful) throw new RestorePreviousStateFailedException("Unable to rename old backup file in order to restore previous state");
+			if (!renameSuccessful)
+				throw new RestorePreviousStateFailedException("Unable to rename old backup file in order to restore previous state");
 			return loadTransfer(new File(pathString));
 		}
 		catch (URISyntaxException | TransferLoadingFailedException e) {

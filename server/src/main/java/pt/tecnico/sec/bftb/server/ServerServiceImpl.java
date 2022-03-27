@@ -17,9 +17,8 @@ import static io.grpc.Status.*;
 
 public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 
-	private static final String DEADLINE_EXCEEDED_DESC = "Timed out!";
 	public static final String INVALID_SIGNATURE = "Invalid signature";
-
+	private static final String DEADLINE_EXCEEDED_DESC = "Timed out!";
 	private final SignatureManager signatureManager;
 	private final Server server;
 
@@ -31,7 +30,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 		catch (PrivateKeyLoadingFailedException e) {
 			throw new ServerInitializationFailedException(e);
 		}
-    }
+	}
 
 	@Override
 	public void openAccount(SignedOpenAccountRequest request, StreamObserver<SignedOpenAccountResponse> responseObserver) {
@@ -51,13 +50,13 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			}
 			server.openAccount(publicKey);
 			// Build Signed Response
-            SignedOpenAccountResponse.Builder signedBuilder = SignedOpenAccountResponse.newBuilder();
+			SignedOpenAccountResponse.Builder signedBuilder = SignedOpenAccountResponse.newBuilder();
 			byte[] serverSignature = signatureManager.sign(nonceToServer);
 			signedBuilder.setSignature(ByteString.copyFrom(serverSignature));
-            SignedOpenAccountResponse signedResponse = signedBuilder.build();
-            // Send Response
-            responseObserver.onNext(signedResponse);
-            responseObserver.onCompleted();
+			SignedOpenAccountResponse signedResponse = signedBuilder.build();
+			// Send Response
+			responseObserver.onNext(signedResponse);
+			responseObserver.onCompleted();
 		}
 		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException | AccountSavingFailedException e) {
 			e.printStackTrace();
@@ -94,9 +93,9 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			byte[] serverSignature = signatureManager.sign(nonceToServer);
 			signedBuilder.setSignature(ByteString.copyFrom(serverSignature));
 			SignedSendAmountResponse signedResponse = signedBuilder.build();
-            // Send Response
-            responseObserver.onNext(signedResponse);
-            responseObserver.onCompleted();
+			// Send Response
+			responseObserver.onNext(signedResponse);
+			responseObserver.onCompleted();
 		}
 		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException | RestorePreviousStateFailedException e) {
 			e.printStackTrace();
@@ -127,7 +126,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			int balance = server.getBalance(publicKey);
 			String transfers = server.getPendingTransfers(publicKey);
 			// Build Response
-            CheckAccountResponse.Builder builder = CheckAccountResponse.newBuilder();
+			CheckAccountResponse.Builder builder = CheckAccountResponse.newBuilder();
 			builder.setBalance(balance);
 			builder.setPendingTransfers(transfers);
 			CheckAccountResponse response = builder.build();
@@ -137,9 +136,9 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			byte[] serverSignature = signatureManager.sign(nonceToServer, signedBuilder.getContent().toByteArray());
 			signedBuilder.setSignature(ByteString.copyFrom(serverSignature));
 			SignedCheckAccountResponse signedResponse = signedBuilder.build();
-            // Send Response
-            responseObserver.onNext(signedResponse);
-            responseObserver.onCompleted();
+			// Send Response
+			responseObserver.onNext(signedResponse);
+			responseObserver.onCompleted();
 		}
 		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException e) {
 			e.printStackTrace();
@@ -170,13 +169,13 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			int transferNum = content.getTransferNum();
 			server.receiveAmount(publicKey, transferNum);
 			// Build Signed Response
-            SignedReceiveAmountResponse.Builder signedBuilder = SignedReceiveAmountResponse.newBuilder();
+			SignedReceiveAmountResponse.Builder signedBuilder = SignedReceiveAmountResponse.newBuilder();
 			byte[] serverSignature = signatureManager.sign(nonceToServer);
 			signedBuilder.setSignature(ByteString.copyFrom(serverSignature));
-            SignedReceiveAmountResponse signedResponse = signedBuilder.build();
-            // Send Response
-            responseObserver.onNext(signedResponse);
-            responseObserver.onCompleted();
+			SignedReceiveAmountResponse signedResponse = signedBuilder.build();
+			// Send Response
+			responseObserver.onNext(signedResponse);
+			responseObserver.onCompleted();
 		}
 		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException | RestorePreviousStateFailedException e) {
 			e.printStackTrace();
@@ -205,7 +204,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 				return;
 			}
 			// Build Response
-            AuditResponse.Builder builder = AuditResponse.newBuilder();
+			AuditResponse.Builder builder = AuditResponse.newBuilder();
 			builder.setHistory(server.getApprovedTransfers(publicKey));
 			AuditResponse response = builder.build();
 			// Build Signed Response
@@ -213,10 +212,10 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			signedBuilder.setContent(response);
 			byte[] serverSignature = signatureManager.sign(nonceToServer, signedBuilder.getContent().toByteArray());
 			signedBuilder.setSignature(ByteString.copyFrom(serverSignature));
-            SignedAuditResponse signedResponse = signedBuilder.build();
-            // Send Response
-            responseObserver.onNext(signedResponse);
-            responseObserver.onCompleted();
+			SignedAuditResponse signedResponse = signedBuilder.build();
+			// Send Response
+			responseObserver.onNext(signedResponse);
+			responseObserver.onCompleted();
 		}
 		catch (AccountDoesNotExistException | CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException e) {
 			e.printStackTrace();
@@ -235,12 +234,12 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
 			byte[] nonce = signatureManager.generateCypheredNonce(publicKey);
 			// Build Response
-            GetNonceResponse.Builder builder = GetNonceResponse.newBuilder();
+			GetNonceResponse.Builder builder = GetNonceResponse.newBuilder();
 			builder.setCypheredNonce(ByteString.copyFrom(nonce));
-            GetNonceResponse response = builder.build();
-            // Send Response
-            responseObserver.onNext(response);
-            responseObserver.onCompleted();
+			GetNonceResponse response = builder.build();
+			// Send Response
+			responseObserver.onNext(response);
+			responseObserver.onCompleted();
 		}
 		catch (CypherFailedException | NoSuchAlgorithmException | InvalidKeySpecException e) {
 			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
