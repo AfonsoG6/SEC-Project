@@ -16,21 +16,8 @@ import java.util.regex.PatternSyntaxException;
 
 public class Client {
 
-	public static final String ASK_FOR_HELP = "Use the command 'help' to see the available commands.";
 	public static final String SERVER_ERROR_PREFIX = "SERVER ERROR: ";
 	public static final String ERROR_PREFIX = "ERROR: ";
-	public static final String ERROR_NUMBER_OF_ARGUMENTS = "ERROR: Invalid number of arguments! " + ASK_FOR_HELP;
-	public static final String UNKNOWN_COMMAND = "ERROR: Unknown command! " + ASK_FOR_HELP;
-	public static final String HELP_STRING = "Available Commands:%n" +
-			"- ping <one word>                Check if server is responsive%n" +
-			"- user <username>                Change to another user%n" +
-			"- open                           Open a new account%n" +
-			"- send <destination> <amount>    Send to the destination account the specified amount%n" +
-			"- receive                        Confirm the earliest pending incoming transfer%n" +
-			"- receive <transfer number>      Confirm the pending incoming transfer with the specified number%n" +
-			"- check                          Obtain the balance of the account, and the list of pending transfers%n" +
-			"- audit                          Obtain the full transaction history of the account%n" +
-			"- exit                           Exit the App%n";
 	public static final String OPERATION_SUCCESSFUL = "Operation successful!";
 	public static final String OPERATION_FAILED = "Operation failed!";
 	private static final long DEADLINE_SEC = 10;    // Timeout deadline in seconds
@@ -55,61 +42,7 @@ public class Client {
 		this(Resources.getPublicKeyByUserId("user"), Resources.getPrivateKeyByUserId("user"), serverURI);
 	}
 
-	// Returns true if the App should exit
-	public boolean parseAndExecCommand(String line)
-			throws KeyPairLoadingFailedException, KeyPairGenerationFailedException {
-		try {
-			String[] tokens = line.split(" ");
-			switch (tokens[0]) {
-				case "#":
-					// ignores line
-					break;
-				case "exit":
-					return true;
-				case "help":
-					System.out.printf(HELP_STRING);
-					break;
-				case "ping":
-					if (tokens.length == 2) ping(tokens[1]);
-					else System.out.println(ERROR_NUMBER_OF_ARGUMENTS);
-					break;
-				case "user":
-					if (tokens.length == 2) changeUser(tokens[1]);
-					else System.out.println(ERROR_NUMBER_OF_ARGUMENTS);
-					break;
-				case "open":
-					if (tokens.length == 1) openAccount();
-					else System.out.println(ERROR_NUMBER_OF_ARGUMENTS);
-					break;
-				case "send":
-					if (tokens.length == 3) sendAmount(tokens[1], Integer.parseInt(tokens[2]));
-					else System.out.println(ERROR_NUMBER_OF_ARGUMENTS);
-					break;
-				case "check":
-					if (tokens.length == 1) checkAccount();
-					else System.out.println(ERROR_NUMBER_OF_ARGUMENTS);
-					break;
-				case "receive":
-					if (tokens.length == 2) receiveAmount(0);
-					else if (tokens.length == 3) receiveAmount(Integer.parseInt(tokens[2]));
-					else System.out.println(ERROR_NUMBER_OF_ARGUMENTS);
-					break;
-				case "audit":
-					if (tokens.length == 1) audit();
-					else System.out.println(ERROR_NUMBER_OF_ARGUMENTS);
-					break;
-				default:
-					System.out.println(UNKNOWN_COMMAND);
-					break;
-			}
-		}
-		catch (NumberFormatException | PatternSyntaxException e) {
-			System.out.println(UNKNOWN_COMMAND);
-		}
-		return false;
-	}
-
-	private void changeUser(String userId) throws KeyPairLoadingFailedException, KeyPairGenerationFailedException {
+	public void changeUser(String userId) throws KeyPairLoadingFailedException, KeyPairGenerationFailedException {
 		userPrivateKey = Resources.getPrivateKeyByUserId(userId);
 		userPublicKey = Resources.getPublicKeyByUserId(userId);
 		signatureManager.setPrivateKey(userPrivateKey);
@@ -232,7 +165,6 @@ public class Client {
 			System.out.println("Balance: " + response.getContent().getBalance());
 			System.out.println("Pending Transfers: ");
 			System.out.println(response.getContent().getPendingTransfers());
-
 		}
 		catch (StatusRuntimeException e) {
 			System.out.println(SERVER_ERROR_PREFIX + e.getStatus().getDescription());

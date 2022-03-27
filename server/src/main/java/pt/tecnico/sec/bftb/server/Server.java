@@ -149,7 +149,7 @@ public class Server {
 			Long transferID = transferIDs.get(i);
 			Transfer transfer = this.transfers.get(transferID);
 			String direction = (userPublicKey.equals(transfer.getSourceKey())) ? "OUTGOING" : "INCOMING";
-			builder.append("%s TRANSFER %d: %s%n".formatted(direction, i, transfer.toString()));
+			builder.append("%s TRANSFER no.%d: %s%n".formatted(direction, i, transfer.toString()));
 		}
 		return builder.toString();
 	}

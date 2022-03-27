@@ -19,12 +19,14 @@ public class Resources {
 	private static final String KEYSTORE_FILENAME = "keystore.jks";
 	private static final String KEYSTORE_PWD = "sec2122";
 
-	private static final String ACCOUNTS_PATH = "accounts";
-	private static final String TRANSFERS_PATH = "transfers";
+	private static final String STATE_PATH = "state";
+	private static final String ACCOUNTS_PATH = Path.of(STATE_PATH, "accounts").toString();
+	private static final String TRANSFERS_PATH = Path.of(STATE_PATH, "transfers").toString();
 
 	private Resources() { /* empty */ }
 
 	public static void init() throws DirectoryCreationFailedException {
+		createResourceDirectory(STATE_PATH);
 		createResourceDirectory(ACCOUNTS_PATH);
 		createResourceDirectory(TRANSFERS_PATH);
 	}
@@ -117,6 +119,7 @@ public class Resources {
 			try (ObjectOutputStream oos = new ObjectOutputStream(new BufferedOutputStream(new FileOutputStream(pathString)))) {
 				oos.writeObject(account);
 			}
+			System.out.println("Saved account " + accountIdentifier);
 		}
 		catch (IOException | NoSuchAlgorithmException | URISyntaxException | KeepPreviousStateFailedException e) {
 			throw new AccountSavingFailedException(e);
@@ -130,6 +133,8 @@ public class Resources {
 			assert accountsFiles != null;
 			List<Account> accounts = new ArrayList<>();
 			for (File accountFile : accountsFiles) {
+				if (accountFile.getPath().endsWith(".old"))
+					continue;
 				accounts.add(loadAccount(accountFile));
 			}
 			return accounts;
@@ -163,6 +168,7 @@ public class Resources {
 		catch (IOException | URISyntaxException | KeepPreviousStateFailedException e) {
 			throw new TransferSavingFailedException(e);
 		}
+		System.out.println("Saved transfer " + transfer.getID());
 	}
 
 	public static List<Transfer> loadTransfers() throws TransferLoadingFailedException {
@@ -172,6 +178,8 @@ public class Resources {
 			assert transfersFiles != null;
 			List<Transfer> transfers = new ArrayList<>();
 			for (File transferFile : transfersFiles) {
+				if (transferFile.getPath().endsWith(".old"))
+					continue;
 				transfers.add(loadTransfer(transferFile));
 			}
 			return transfers;
