@@ -104,6 +104,7 @@ public class Server {
 		if (!source.canDecrement(amount)) throw new BalanceTooLowException();
 		long newID = getNewIDForTransfer();
 		Transfer transfer = new Transfer(newID, sourceKey, destinationKey, amount);
+		transfers.put(transfer.getID(), transfer);
 		destination.addPendingIncomingTransfer(transfer.getID());
 		source.addTransfer(transfer.getID());
 		// Backup the state of the relevant objects
