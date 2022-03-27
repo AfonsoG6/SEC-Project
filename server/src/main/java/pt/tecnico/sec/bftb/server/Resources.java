@@ -11,7 +11,6 @@ import java.nio.file.Paths;
 import java.security.*;
 import java.security.cert.CertificateException;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 
 public class Resources {
@@ -24,6 +23,18 @@ public class Resources {
 	private static final String TRANSFERS_PATH = "transfers";
 
 	private Resources() { /* empty */ }
+
+	public static void init() throws DirectoryCreationFailedException {
+		createResourceDirectory(ACCOUNTS_PATH);
+		createResourceDirectory(TRANSFERS_PATH);
+	}
+
+	private static String getAbsolutePathOfResource(String accountsPath) throws URISyntaxException {
+		String pathString = Path.of(accountsPath).toString();
+		URL pathURL = Resources.class.getClassLoader().getResource(pathString);
+		assert pathURL != null;
+		return Paths.get(pathURL.toURI()).toString();
+	}
 
 	public static PrivateKey getPrivateKey() throws PrivateKeyLoadingFailedException {
 		try {
@@ -52,31 +63,65 @@ public class Resources {
 		}
 	}
 
+	private static void keepPreviousState(String pathString) throws KeepPreviousStateFailedException {
+		if (Files.exists(Paths.get(pathString))) {
+			if (Files.exists(Paths.get(pathString + ".old"))) {
+				File oldFile = new File(pathString + ".old");
+				boolean deleteSuccessful = oldFile.delete();
+				if (!deleteSuccessful) throw new KeepPreviousStateFailedException("Could not delete old backup file");
+			}
+			File oldFile = new File(pathString);
+			boolean renameSuccessful = oldFile.renameTo(new File(pathString + ".old"));
+			if (!renameSuccessful) throw new KeepPreviousStateFailedException("Could not rename old backup file");
+		}
+	}
+
+	public static Account restorePreviousState(Account account) throws RestorePreviousStateFailedException {
+		try {
+			String pathString = Path.of(getAbsolutePathOfResource(ACCOUNTS_PATH), account.getHash()).toString();
+			if (!Files.exists(Paths.get(pathString + ".old"))) throw new RestorePreviousStateFailedException("No previous state to restore");
+			File oldFile = new File(pathString + ".old");
+			boolean renameSuccessful = oldFile.renameTo(new File(pathString));
+			if (!renameSuccessful) throw new RestorePreviousStateFailedException("Unable to rename old backup file in order to restore previous state");
+			return loadAccount(new File(pathString));
+		}
+		catch (URISyntaxException | NoSuchAlgorithmException | AccountLoadingFailedException e) {
+			throw new RestorePreviousStateFailedException(e);
+		}
+	}
+
+	public static Transfer restorePreviousState(Transfer transfer) throws RestorePreviousStateFailedException {
+		try {
+			String pathString = Path.of(getAbsolutePathOfResource(TRANSFERS_PATH), Long.toString(transfer.getID())).toString();
+			if (!Files.exists(Paths.get(pathString + ".old"))) throw new RestorePreviousStateFailedException("No previous state to restore");
+			File oldFile = new File(pathString + ".old");
+			boolean renameSuccessful = oldFile.renameTo(new File(pathString));
+			if (!renameSuccessful) throw new RestorePreviousStateFailedException("Unable to rename old backup file in order to restore previous state");
+			return loadTransfer(new File(pathString));
+		}
+		catch (URISyntaxException | TransferLoadingFailedException e) {
+			throw new RestorePreviousStateFailedException(e);
+		}
+	}
+
 	public static void saveAccount(Account account) throws AccountSavingFailedException {
 		try {
-			createResourceDirectory(ACCOUNTS_PATH);
 			String accountIdentifier = account.getHash();
-			URL accountsURL = Resources.class.getClassLoader().getResource(ACCOUNTS_PATH);
-			assert accountsURL != null;
-			Path accountsPath = Paths.get(accountsURL.toURI());
-			String pathString = accountsPath.resolve(accountIdentifier).toString();
+			String accountsPathString = getAbsolutePathOfResource(ACCOUNTS_PATH);
+			String pathString = Path.of(accountsPathString, accountIdentifier).toString();
+			keepPreviousState(pathString);
 			try (ObjectOutputStream oos = new ObjectOutputStream(new BufferedOutputStream(new FileOutputStream(pathString)))) {
 				oos.writeObject(account);
 			}
 		}
-		catch (IOException | NoSuchAlgorithmException | DirectoryCreationFailedException | URISyntaxException e) {
+		catch (IOException | NoSuchAlgorithmException | URISyntaxException | KeepPreviousStateFailedException e) {
 			throw new AccountSavingFailedException(e);
 		}
 	}
 
 	public static List<Account> loadAccounts() throws AccountLoadingFailedException {
 		try {
-			createResourceDirectory(ACCOUNTS_PATH);
-			String pathString = Path.of(ACCOUNTS_PATH).toString();
-			URL pathURL = Resources.class.getClassLoader().getResource(pathString);
-			assert pathURL != null;
-			String absolutePathString = Paths.get(pathURL.toURI()).toString();
-			File accountsFolder = new File(absolutePathString);
+			File accountsFolder = new File(getAbsolutePathOfResource(ACCOUNTS_PATH));
 			File[] accountsFiles = accountsFolder.listFiles();
 			assert accountsFiles != null;
 			List<Account> accounts = new ArrayList<>();
@@ -85,45 +130,40 @@ public class Resources {
 			}
 			return accounts;
 		}
-		catch (URISyntaxException | DirectoryCreationFailedException e) {
+		catch (URISyntaxException e) {
 			throw new AccountLoadingFailedException(e);
 		}
 	}
 
 	private static Account loadAccount(File accountFile) throws AccountLoadingFailedException {
 		try {
-			createResourceDirectory(ACCOUNTS_PATH);
 			try (ObjectInputStream ois = new ObjectInputStream(new BufferedInputStream(new FileInputStream(accountFile)))) {
 				return (Account) ois.readObject();
 			}
 		}
-		catch (IOException | ClassNotFoundException | DirectoryCreationFailedException e) {
+		catch (IOException | ClassNotFoundException e) {
 			throw new AccountLoadingFailedException(e);
 		}
 	}
 
 	public static void saveTransfer(Transfer transfer) throws TransferSavingFailedException {
 		try {
-			createResourceDirectory(TRANSFERS_PATH);
 			String transferIdentifier = Long.toString(transfer.getID());
-			String pathString = Path.of(TRANSFERS_PATH, transferIdentifier).toString();
+			String transfersPathString = getAbsolutePathOfResource(TRANSFERS_PATH);
+			String pathString = Path.of(transfersPathString, transferIdentifier).toString();
+			keepPreviousState(pathString);
 			try (ObjectOutputStream oos = new ObjectOutputStream(new BufferedOutputStream(new FileOutputStream(pathString)))) {
 				oos.writeObject(transfer);
 			}
 		}
-		catch (IOException | DirectoryCreationFailedException e) {
+		catch (IOException | URISyntaxException | KeepPreviousStateFailedException e) {
 			throw new TransferSavingFailedException(e);
 		}
 	}
 
 	public static List<Transfer> loadTransfers() throws TransferLoadingFailedException {
 		try {
-			createResourceDirectory(TRANSFERS_PATH);
-			String pathString = Path.of(TRANSFERS_PATH).toString();
-			URL pathURL = Resources.class.getClassLoader().getResource(pathString);
-			assert pathURL != null;
-			String absolutePathString = Paths.get(pathURL.toURI()).toString();
-			File transfersFolder = new File(absolutePathString);
+			File transfersFolder = new File(getAbsolutePathOfResource(TRANSFERS_PATH));
 			File[] transfersFiles = transfersFolder.listFiles();
 			assert transfersFiles != null;
 			List<Transfer> transfers = new ArrayList<>();
@@ -132,21 +172,17 @@ public class Resources {
 			}
 			return transfers;
 		}
-		catch (URISyntaxException | DirectoryCreationFailedException e) {
+		catch (URISyntaxException e) {
 			throw new TransferLoadingFailedException(e);
 		}
 	}
 
 	private static Transfer loadTransfer(File transferFile) throws TransferLoadingFailedException {
-		try {
-			createResourceDirectory(TRANSFERS_PATH);
-			try (ObjectInputStream ois = new ObjectInputStream(new BufferedInputStream(new FileInputStream(transferFile)))) {
-				return (Transfer) ois.readObject();
-			}
+		try (ObjectInputStream ois = new ObjectInputStream(new BufferedInputStream(new FileInputStream(transferFile)))) {
+			return (Transfer) ois.readObject();
 		}
-		catch (IOException | ClassNotFoundException | DirectoryCreationFailedException e) {
+		catch (IOException | ClassNotFoundException e) {
 			throw new TransferLoadingFailedException(e);
 		}
 	}
-
 }

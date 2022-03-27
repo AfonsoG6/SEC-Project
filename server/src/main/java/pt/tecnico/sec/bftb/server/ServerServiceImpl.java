@@ -23,9 +23,14 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 	private final SignatureManager signatureManager;
 	private final Server server;
 
-	public ServerServiceImpl() throws PrivateKeyLoadingFailedException, AccountLoadingFailedException {
-		this.signatureManager = new SignatureManager();
-		this.server = new Server();
+	public ServerServiceImpl() throws ServerInitializationFailedException {
+		try {
+			this.signatureManager = new SignatureManager();
+			this.server = new Server();
+		}
+		catch (PrivateKeyLoadingFailedException e) {
+			throw new ServerInitializationFailedException(e);
+		}
     }
 
 	@Override
@@ -54,9 +59,13 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
             responseObserver.onNext(signedResponse);
             responseObserver.onCompleted();
 		}
-		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException e) {
+		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException | AccountSavingFailedException e) {
 			e.printStackTrace();
 			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
+		}
+		catch (AccountAlreadyExistsException e) {
+			e.printStackTrace();
+			responseObserver.onError(ALREADY_EXISTS.withDescription(e.getMessage()).asRuntimeException());
 		}
 	}
 
@@ -89,7 +98,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
             responseObserver.onNext(signedResponse);
             responseObserver.onCompleted();
 		}
-		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException e) {
+		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException | RestorePreviousStateFailedException e) {
 			e.printStackTrace();
 			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
 		}
@@ -169,7 +178,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
             responseObserver.onNext(signedResponse);
             responseObserver.onCompleted();
 		}
-		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException e) {
+		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException | RestorePreviousStateFailedException e) {
 			e.printStackTrace();
 			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
 		}

@@ -6,6 +6,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class Account implements Serializable {
 	@Serial
@@ -14,8 +16,8 @@ public class Account implements Serializable {
 
 	private final PublicKey publicKey;
 	private int balance;
-	private final ArrayList<Transfer> pendingIncomingTransfers;
-	private final ArrayList<Transfer> transferHistory;
+	private final ArrayList<Long> pendingIncomingTransfers;
+	private final ArrayList<Long> transferHistory;
 
 	public Account(PublicKey publicKey){
 		this.publicKey = publicKey;
@@ -56,40 +58,28 @@ public class Account implements Serializable {
 
 	// Adds a new pending transfer from a given sourceKey and amount
 
-	public void addPendingIncomingTransfer(Transfer transfer) {
-		pendingIncomingTransfers.add(transfer);
+	public void addPendingIncomingTransfer(long transferID) {
+		pendingIncomingTransfers.add(transferID);
 	}
 
-	public void addTransfer(Transfer transfer) {
-		transferHistory.add(transfer);
+	public void addTransfer(long transferID) {
+		transferHistory.add(transferID);
 	}
 
 	// Returns all pending transfers concatenated into a string
 
-	public String getPendingIncomingTransfersString() {
-		String pendingTransfersString = "";
-		for (int i = 0; i < pendingIncomingTransfers.size(); i++) {
-			pendingTransfersString += "INCOMING TRANSFER " + i + ": " + pendingIncomingTransfers.get(i).toString() + "\n";
-		}
-		return pendingTransfersString;
+	public List<Long> getPendingIncomingTransferIDs() {
+		return Collections.unmodifiableList(pendingIncomingTransfers);
 	}
 
-	public Transfer getPendingTransfer(int transferNum) {
+	public Long getPendingTransferID(int transferNum) {
 		return pendingIncomingTransfers.get(transferNum);
 	}
 
 	public void approveIncomingTransfer(int i) {
-		Transfer transfer = pendingIncomingTransfers.get(i);
+		long transferID = pendingIncomingTransfers.get(i);
 		pendingIncomingTransfers.remove(i);
-		transfer.approve();
-		transferHistory.add(transfer);
-	}
-
-	public void approveOutgoingTransfer(long transferID) {
-		transferHistory.stream()
-				.filter(transfer -> transfer.getID() == transferID)
-				.findFirst()
-				.ifPresent(Transfer::approve);
+		transferHistory.add(transferID);
 	}
 
 	public boolean isPendingTransferNumValid(int num) {
@@ -98,14 +88,8 @@ public class Account implements Serializable {
 
 	// Returns transfer history concatenated into a string
 
-	public String getTransferHistory() {
-		StringBuilder historyString = new StringBuilder();
-		for (int i = 0; i < transferHistory.size(); i++) {
-			Transfer transfer = transferHistory.get(i);
-			String direction = (publicKey.equals(transfer.getSourceKey()))? "OUTGOING" : "INCOMING";
-			historyString.append("%s TRANSFER %d: %s%n".formatted(direction, i, transfer.toString()));
-		}
-		return historyString.toString();
+	public List<Long> getTransferIDsHistory() {
+		return Collections.unmodifiableList(transferHistory);
 	}
 
 	public String getHash() throws NoSuchAlgorithmException {

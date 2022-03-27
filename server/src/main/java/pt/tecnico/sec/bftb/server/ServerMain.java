@@ -2,15 +2,14 @@ package pt.tecnico.sec.bftb.server;
 
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
-import pt.tecnico.sec.bftb.server.exceptions.AccountLoadingFailedException;
-import pt.tecnico.sec.bftb.server.exceptions.PrivateKeyLoadingFailedException;
+import pt.tecnico.sec.bftb.server.exceptions.ServerInitializationFailedException;
 
 import java.io.IOException;
 
 public class ServerMain {
 
 	public static void main(String[] args)
-			throws IOException, InterruptedException, PrivateKeyLoadingFailedException, AccountLoadingFailedException {
+			throws IOException, InterruptedException, ServerInitializationFailedException {
 		System.out.println(ServerMain.class.getSimpleName());
 		
 		// receive and print arguments
