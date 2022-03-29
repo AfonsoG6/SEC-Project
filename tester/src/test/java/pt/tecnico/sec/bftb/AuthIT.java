@@ -1,11 +1,7 @@
 package pt.tecnico.sec.bftb;
 
-import com.google.protobuf.ByteString;
 import io.grpc.StatusRuntimeException;
 import org.junit.jupiter.api.Test;
-import pt.tecnico.sec.bftb.client.Resources;
-import pt.tecnico.sec.bftb.client.SignatureManager;
-import pt.tecnico.sec.bftb.server.grpc.Server;
 
 import static io.grpc.Status.INTERNAL;
 import static io.grpc.Status.INVALID_ARGUMENT;

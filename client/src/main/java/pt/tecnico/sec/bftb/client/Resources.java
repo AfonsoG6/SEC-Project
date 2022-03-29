@@ -5,8 +5,10 @@ import pt.tecnico.sec.bftb.client.exceptions.KeyPairLoadingFailedException;
 import pt.tecnico.sec.bftb.client.exceptions.LoadKeyStoreFailedException;
 import pt.tecnico.sec.bftb.client.exceptions.SaveKeyStoreFailedException;
 
-import java.io.*;
-import java.math.BigInteger;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
@@ -17,9 +19,6 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.X509EncodedKeySpec;
 
 public class Resources {
 	private static final String SERVER_CERT_PATH = "servercert";

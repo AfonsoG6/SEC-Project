@@ -1,8 +1,8 @@
 package pt.tecnico.sec.bftb.server;
 
 import java.sql.Connection;
-import java.sql.Statement;
 import java.sql.DriverManager;
+import java.sql.Statement;
 
 public class SQLiteJDBC {
 	Connection c = null;
