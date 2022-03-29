@@ -1,12 +1,10 @@
 package pt.tecnico.sec.bftb.client;
 
+import org.bouncycastle.jce.X509Principal;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import pt.tecnico.sec.bftb.client.exceptions.KeyPairGenerationFailedException;
-import pt.tecnico.sec.bftb.client.exceptions.KeyPairLoadingFailedException;
-import pt.tecnico.sec.bftb.client.exceptions.LoadKeyStoreFailedException;
-import pt.tecnico.sec.bftb.client.exceptions.SaveKeyStoreFailedException;
+import org.bouncycastle.x509.X509V3CertificateGenerator;
+import pt.tecnico.sec.bftb.client.exceptions.*;
 
-import javax.security.auth.x500.X500Principal;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -18,12 +16,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.*;
-import java.security.cert.*;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.util.Date;
-
-import org.bouncycastle.jce.X509Principal;
-import org.bouncycastle.x509.X509V3CertificateGenerator;
 
 public class Resources {
 	private static final String SERVER_CERT_PATH = "servercert";
@@ -103,7 +100,7 @@ public class Resources {
 
 			saveKeyStore(keyStore);
 		}
-		catch (NullPointerException | NoSuchAlgorithmException | KeyStoreException | LoadKeyStoreFailedException | SaveKeyStoreFailedException e) {
+		catch (NullPointerException | NoSuchAlgorithmException | KeyStoreException | LoadKeyStoreFailedException | SaveKeyStoreFailedException | CertificateGenerationFailedException e) {
 			throw new KeyPairGenerationFailedException(e);
 		}
 	}
@@ -142,7 +139,8 @@ public class Resources {
 	}
 
 	@SuppressWarnings("deprecation")
-	private static X509Certificate generateSelfSignedCertificate(PrivateKey privateKey, PublicKey publicKey) {
+	private static X509Certificate generateSelfSignedCertificate(PrivateKey privateKey, PublicKey publicKey)
+			throws CertificateGenerationFailedException {
 		try {
 			// Generate self-signed certificate
 			X509V3CertificateGenerator v3CertGen =  new X509V3CertificateGenerator();
@@ -156,8 +154,7 @@ public class Resources {
 			return v3CertGen.generateX509Certificate(privateKey);
 		}
 		catch (SignatureException | InvalidKeyException e) {
-			//TODO Auto-generated catch block
-			throw new RuntimeException(e);
+			throw new CertificateGenerationFailedException(e);
 		}
 	}
 }
