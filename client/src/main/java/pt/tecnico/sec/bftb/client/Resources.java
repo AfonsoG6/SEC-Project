@@ -2,15 +2,18 @@ package pt.tecnico.sec.bftb.client;
 
 import pt.tecnico.sec.bftb.client.exceptions.KeyPairGenerationFailedException;
 import pt.tecnico.sec.bftb.client.exceptions.KeyPairLoadingFailedException;
+import pt.tecnico.sec.bftb.client.exceptions.LoadKeyStoreFailedException;
+import pt.tecnico.sec.bftb.client.exceptions.SaveKeyStoreFailedException;
 
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
+import java.math.BigInteger;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.*;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
@@ -19,47 +22,65 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 
 public class Resources {
-
-	public static final String PRIVKEY_FILENAME = "private.key";
-	public static final String PUBKEY_FILENAME = "public.key";
-	private static final String KEYPAIR_PATH = "keypairs";
 	private static final String SERVER_CERT_PATH = "servercert";
 	private static final String SERVER_CERT_FILENAME = "cert.pem";
+	private static final String KEYSTORE_FILENAME = "keystore.jks";
+	private static final String KEYSTORE_PWD = "sec2122";
+	public static final String PRIVATE_SUFFIX = ".private";
+	public static final String PUBLIC_SUFFIX = ".public";
 
 	private Resources() { /* empty */ }
 
+	public void init() {
+		// Create empty keystore if it doesn't exist yet
+		try {
+			String keyStorePathString = getAbsolutePathOfResource(KEYSTORE_FILENAME);
+			if (!Files.exists(Path.of(keyStorePathString))) {
+				KeyStore keyStore = KeyStore.getInstance("JKS");
+				keyStore.load(null, KEYSTORE_PWD.toCharArray());
+				try (FileOutputStream fos = new FileOutputStream(keyStorePathString)) {
+					keyStore.store(fos, KEYSTORE_PWD.toCharArray());
+				}
+			}
+		}
+		catch (URISyntaxException | KeyStoreException | IOException | NoSuchAlgorithmException | CertificateException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private static String getAbsolutePathOfResource(String path) throws URISyntaxException {
+		String pathString = Path.of(path).toString();
+		URL pathURL = Resources.class.getClassLoader().getResource(pathString);
+		assert pathURL != null;
+		return Paths.get(pathURL.toURI()).toString();
+	}
+
 	public static PublicKey getPublicKeyByUserId(String userId)
 			throws KeyPairLoadingFailedException, KeyPairGenerationFailedException {
-		// Check if userId exists, if not, generate new keypair for it
-		if (isKeyPairNonexistent(userId)) generateKeyPair(userId);
-
 		try {
-			String pathString = Path.of(KEYPAIR_PATH, userId, PUBKEY_FILENAME).toString();
-			InputStream keyStream = Resources.class.getClassLoader().getResourceAsStream(pathString);
-			assert keyStream != null;
-			byte[] keyBytes = keyStream.readAllBytes();
-			X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
-			return KeyFactory.getInstance("RSA").generatePublic(spec);
+			// Check if userId exists, if not, generate new keypair for it
+			KeyStore keyStore = getKeyStore();
+			if (!keyStore.containsAlias(userId + PUBLIC_SUFFIX)) generateKeyPair(userId);
+
+			keyStore = getKeyStore();
+			return (PublicKey) keyStore.getKey(userId + PUBLIC_SUFFIX, KEYSTORE_PWD.toCharArray());
 		}
-		catch (IOException | InvalidKeySpecException | NoSuchAlgorithmException e) {
+		catch (NoSuchAlgorithmException | LoadKeyStoreFailedException | KeyStoreException | UnrecoverableKeyException e) {
 			throw new KeyPairLoadingFailedException(e);
 		}
 	}
 
 	public static PrivateKey getPrivateKeyByUserId(String userId)
 			throws KeyPairGenerationFailedException, KeyPairLoadingFailedException {
-		// Check if userId exists, if not, generate new keypair for it
-		if (isKeyPairNonexistent(userId)) generateKeyPair(userId);
-
 		try {
-			String pathString = Path.of(KEYPAIR_PATH, userId, PRIVKEY_FILENAME).toString();
-			InputStream keyStream = Resources.class.getClassLoader().getResourceAsStream(pathString);
-			assert keyStream != null;
-			byte[] keyBytes = keyStream.readAllBytes();
-			PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
-			return KeyFactory.getInstance("RSA").generatePrivate(spec);
+			// Check if userId exists, if not, generate new keypair for it
+			KeyStore keyStore = getKeyStore();
+			if (!keyStore.containsAlias(userId + PRIVATE_SUFFIX)) generateKeyPair(userId);
+
+			keyStore = getKeyStore();
+			return (PrivateKey) keyStore.getKey(userId + PRIVATE_SUFFIX, KEYSTORE_PWD.toCharArray());
 		}
-		catch (IOException | InvalidKeySpecException | NoSuchAlgorithmException e) {
+		catch (NoSuchAlgorithmException | LoadKeyStoreFailedException | KeyStoreException | UnrecoverableKeyException e) {
 			throw new KeyPairLoadingFailedException(e);
 		}
 	}
@@ -72,24 +93,42 @@ public class Resources {
 			PublicKey publicKey = keyPair.getPublic();
 			PrivateKey privateKey = keyPair.getPrivate();
 
-			URL resource = Resources.class.getClassLoader().getResource(".");
-			assert resource != null;
-			Path resourcesPath = Paths.get(resource.toURI());
-			Path keypairPath = resourcesPath.resolve(KEYPAIR_PATH).resolve(userId);
-			Files.createDirectories(keypairPath);
+			KeyStore keyStore = getKeyStore();
 
-			Files.write(keypairPath.resolve(PUBKEY_FILENAME), publicKey.getEncoded());
-			Files.write(keypairPath.resolve(PRIVKEY_FILENAME), privateKey.getEncoded());
+			keyStore.setKeyEntry(userId + PRIVATE_SUFFIX, privateKey, KEYSTORE_PWD.toCharArray(), new Certificate[] {});
+			keyStore.setKeyEntry(userId + PUBLIC_SUFFIX, publicKey, KEYSTORE_PWD.toCharArray(), new Certificate[] {});
+
+			saveKeyStore(keyStore);
 		}
-		catch (NullPointerException | NoSuchAlgorithmException | IOException | URISyntaxException e) {
+		catch (NullPointerException | NoSuchAlgorithmException | KeyStoreException | LoadKeyStoreFailedException | SaveKeyStoreFailedException e) {
 			throw new KeyPairGenerationFailedException(e);
 		}
 	}
 
-	private static boolean isKeyPairNonexistent(String userId) {
-		return Resources.class.getClassLoader().getResource(Path.of(KEYPAIR_PATH, userId).toString()) == null ||
-				Resources.class.getClassLoader().getResource(Path.of(KEYPAIR_PATH, userId, PUBKEY_FILENAME).toString()) == null ||
-				Resources.class.getClassLoader().getResource(Path.of(KEYPAIR_PATH, userId, PRIVKEY_FILENAME).toString()) == null;
+	public static KeyStore getKeyStore() throws LoadKeyStoreFailedException {
+		try {
+			String keyStorePathString = getAbsolutePathOfResource(KEYSTORE_FILENAME);
+			KeyStore keyStore = KeyStore.getInstance("JKS");
+			try (FileInputStream fis = new FileInputStream(keyStorePathString)) {
+				keyStore.load(fis, KEYSTORE_PWD.toCharArray());
+			}
+			return keyStore;
+		}
+		catch (IOException | KeyStoreException | NoSuchAlgorithmException | CertificateException | URISyntaxException e) {
+			throw new LoadKeyStoreFailedException(e);
+		}
+	}
+
+	public static void saveKeyStore(KeyStore keyStore) throws SaveKeyStoreFailedException {
+		try {
+			String keyStorePathString = getAbsolutePathOfResource(KEYSTORE_FILENAME);
+			try (FileOutputStream fos = new FileOutputStream(keyStorePathString)) {
+				keyStore.store(fos, KEYSTORE_PWD.toCharArray());
+			}
+		}
+		catch (IOException | KeyStoreException | NoSuchAlgorithmException | CertificateException | URISyntaxException e) {
+			throw new SaveKeyStoreFailedException(e);
+		}
 	}
 
 	public static PublicKey getServerPublicKey() throws CertificateException {

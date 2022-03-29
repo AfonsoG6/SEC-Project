@@ -1,6 +1,7 @@
 package pt.tecnico.sec.bftb.client;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.GeneratedMessageV3;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
@@ -11,8 +12,9 @@ import pt.tecnico.sec.bftb.server.grpc.ServerServiceGrpc;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.CertificateException;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.PatternSyntaxException;
 
 public class Client {
 
@@ -26,6 +28,8 @@ public class Client {
 	private final PublicKey serverPublicKey;
 	private PublicKey userPublicKey;
 	private PrivateKey userPrivateKey;
+
+	private final List<GeneratedMessageV3> debugRequestHistory = new LinkedList<>();
 
 	public Client(PublicKey userPublicKey, PrivateKey userPrivateKey, String serverURI) throws CertificateException {
 		ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
@@ -42,6 +46,38 @@ public class Client {
 		this(Resources.getPublicKeyByUserId("user"), Resources.getPrivateKeyByUserId("user"), serverURI);
 	}
 
+	public List<GeneratedMessageV3> getDebugRequestHistory() {
+		return debugRequestHistory;
+	}
+
+	public PingResponse debugSendRequest(PingRequest request) {
+		return stub.ping(request);
+	}
+
+	public GetNonceResponse debugSendRequest(GetNonceRequest request) {
+		return stub.getNonce(request);
+	}
+
+	public SignedOpenAccountResponse debugSendRequest(SignedOpenAccountRequest request) {
+		return stub.openAccount(request);
+	}
+
+	public SignedSendAmountResponse debugSendRequest(SignedSendAmountRequest request) {
+		return stub.sendAmount(request);
+	}
+
+	public SignedCheckAccountResponse debugSendRequest(SignedCheckAccountRequest request) {
+		return stub.checkAccount(request);
+	}
+
+	public SignedReceiveAmountResponse debugSendRequest(SignedReceiveAmountRequest request) {
+		return stub.receiveAmount(request);
+	}
+
+	public SignedAuditResponse debugSendRequest(SignedAuditRequest request) {
+		return stub.audit(request);
+	}
+
 	public void changeUser(String userId) throws KeyPairLoadingFailedException, KeyPairGenerationFailedException {
 		userPrivateKey = Resources.getPrivateKeyByUserId(userId);
 		userPublicKey = Resources.getPublicKeyByUserId(userId);
@@ -52,6 +88,7 @@ public class Client {
 	private long requestNonce() throws NonceRequestFailedException {
 		try {
 			GetNonceRequest request = GetNonceRequest.newBuilder().setPublicKey(ByteString.copyFrom(userPublicKey.getEncoded())).build();
+			debugRequestHistory.add(request);
 			GetNonceResponse response = stub.getNonce(request);
 			byte[] cypheredNonce = response.getCypheredNonce().toByteArray();
 			return signatureManager.decypherNonce(cypheredNonce);
@@ -70,7 +107,9 @@ public class Client {
 		try {
 			PingRequest.Builder builder = PingRequest.newBuilder();
 			builder.setInput(input);
-			String output = this.stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).ping(builder.build()).getOutput();
+			PingRequest request = builder.build();
+			debugRequestHistory.add(request);
+			String output = stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).ping(request).getOutput();
 			System.out.println(output);
 		}
 		catch (StatusRuntimeException e) {
@@ -88,11 +127,14 @@ public class Client {
 			byte[] nonceToServer = signatureManager.generateCypheredNonce(this.serverPublicKey);
 			builder.setCypheredNonce(ByteString.copyFrom(nonceToServer));
 			OpenAccountRequest content = builder.build();
+			debugRequestHistory.add(content);
 			byte[] signature = this.signatureManager.sign(nonceToClient, content.toByteArray());
 			SignedOpenAccountRequest.Builder signedBuilder = SignedOpenAccountRequest.newBuilder();
 			signedBuilder.setContent(content);
 			signedBuilder.setSignature(ByteString.copyFrom(signature));
-			SignedOpenAccountResponse response = this.stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).openAccount(signedBuilder.build());
+			SignedOpenAccountRequest signedRequest = signedBuilder.build();
+			debugRequestHistory.add(signedRequest);
+			SignedOpenAccountResponse response = this.stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).openAccount(signedRequest);
 			byte[] serverSignature = response.getSignature().toByteArray();
 			if (this.signatureManager.isSignatureInvalid(serverPublicKey, serverSignature)) {
 				System.out.println(OPERATION_FAILED);
@@ -121,11 +163,14 @@ public class Client {
 			byte[] nonceToServer = signatureManager.generateCypheredNonce(this.serverPublicKey);
 			builder.setCypheredNonce(ByteString.copyFrom(nonceToServer));
 			SendAmountRequest content = builder.build();
+			debugRequestHistory.add(content);
 			byte[] signature = this.signatureManager.sign(nonceToClient, content.toByteArray());
 			SignedSendAmountRequest.Builder signedBuilder = SignedSendAmountRequest.newBuilder();
 			signedBuilder.setContent(content);
 			signedBuilder.setSignature(ByteString.copyFrom(signature));
-			SignedSendAmountResponse response = this.stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).sendAmount(signedBuilder.build());
+			SignedSendAmountRequest signedRequest = signedBuilder.build();
+			debugRequestHistory.add(signedRequest);
+			SignedSendAmountResponse response = this.stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).sendAmount(signedRequest);
 			byte[] serverSignature = response.getSignature().toByteArray();
 			if (this.signatureManager.isSignatureInvalid(serverPublicKey, serverSignature)) {
 				System.out.println(OPERATION_FAILED);
@@ -151,11 +196,14 @@ public class Client {
 			byte[] nonceToServer = signatureManager.generateCypheredNonce(this.serverPublicKey);
 			builder.setCypheredNonce(ByteString.copyFrom(nonceToServer));
 			CheckAccountRequest content = builder.build();
+			debugRequestHistory.add(content);
 			byte[] signature = this.signatureManager.sign(nonceToClient, content.toByteArray());
 			SignedCheckAccountRequest.Builder signedBuilder = SignedCheckAccountRequest.newBuilder();
 			signedBuilder.setContent(content);
 			signedBuilder.setSignature(ByteString.copyFrom(signature));
-			SignedCheckAccountResponse response = this.stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).checkAccount(signedBuilder.build());
+			SignedCheckAccountRequest signedRequest = signedBuilder.build();
+			debugRequestHistory.add(signedRequest);
+			SignedCheckAccountResponse response = this.stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).checkAccount(signedRequest);
 			byte[] serverSignature = response.getSignature().toByteArray();
 			if (this.signatureManager.isSignatureInvalid(serverPublicKey, serverSignature, response.getContent().toByteArray())) {
 				System.out.println(OPERATION_FAILED);
@@ -185,11 +233,14 @@ public class Client {
 			byte[] nonceToServer = signatureManager.generateCypheredNonce(this.serverPublicKey);
 			builder.setCypheredNonce(ByteString.copyFrom(nonceToServer));
 			ReceiveAmountRequest content = builder.build();
+			debugRequestHistory.add(content);
 			byte[] signature = this.signatureManager.sign(nonceToClient, content.toByteArray());
 			SignedReceiveAmountRequest.Builder signedBuilder = SignedReceiveAmountRequest.newBuilder();
 			signedBuilder.setContent(content);
 			signedBuilder.setSignature(ByteString.copyFrom(signature));
-			SignedReceiveAmountResponse response = this.stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).receiveAmount(signedBuilder.build());
+			SignedReceiveAmountRequest signedRequest = signedBuilder.build();
+			debugRequestHistory.add(signedRequest);
+			SignedReceiveAmountResponse response = this.stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).receiveAmount(signedRequest);
 			byte[] serverSignature = response.getSignature().toByteArray();
 			if (this.signatureManager.isSignatureInvalid(serverPublicKey, serverSignature)) {
 				System.out.println(OPERATION_FAILED);
@@ -213,11 +264,14 @@ public class Client {
 			byte[] nonceToServer = signatureManager.generateCypheredNonce(this.serverPublicKey);
 			builder.setCypheredNonce(ByteString.copyFrom(nonceToServer));
 			AuditRequest content = builder.build();
+			debugRequestHistory.add(content);
 			byte[] signature = this.signatureManager.sign(nonceToClient, content.toByteArray());
 			SignedAuditRequest.Builder signedBuilder = SignedAuditRequest.newBuilder();
 			signedBuilder.setContent(content);
 			signedBuilder.setSignature(ByteString.copyFrom(signature));
-			SignedAuditResponse response = this.stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).audit(signedBuilder.build());
+			SignedAuditRequest signedRequest = signedBuilder.build();
+			debugRequestHistory.add(signedRequest);
+			SignedAuditResponse response = this.stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).audit(signedRequest);
 			byte[] serverSignature = response.getSignature().toByteArray();
 			if (this.signatureManager.isSignatureInvalid(serverPublicKey, serverSignature, response.getContent().toByteArray())) {
 				System.out.println(OPERATION_FAILED);

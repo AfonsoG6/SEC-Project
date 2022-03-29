@@ -31,8 +31,8 @@ public class Resources {
 		createResourceDirectory(TRANSFERS_PATH);
 	}
 
-	private static String getAbsolutePathOfResource(String accountsPath) throws URISyntaxException {
-		String pathString = Path.of(accountsPath).toString();
+	private static String getAbsolutePathOfResource(String path) throws URISyntaxException {
+		String pathString = Path.of(path).toString();
 		URL pathURL = Resources.class.getClassLoader().getResource(pathString);
 		assert pathURL != null;
 		return Paths.get(pathURL.toURI()).toString();
