@@ -40,13 +40,13 @@ mvn -version
 To compile and install all modules:
 
 ```shell
-mvn clean install
+mvn clean install -DskipTests
 ```
 
 *Note:* Alternatively, you can compile and install each module separately, by using the `-pl` option:
 
 ```shell
-mvn clean install -pl <module>
+mvn clean install -DskipTests -pl <module>
 ```
 
 ### Running
