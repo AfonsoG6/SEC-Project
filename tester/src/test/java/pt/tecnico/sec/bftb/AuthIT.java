@@ -7,11 +7,12 @@ import static io.grpc.Status.INTERNAL;
 import static io.grpc.Status.INVALID_ARGUMENT;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class AuthIT extends BaseIT {
+class AuthIT extends BaseIT {
 
 	@Test
 	void clientInvalidSignatureTest() {
 		try {
+			client.changeUser("user1");
 			long nonce = client.requestNonce();
 			client.debugSabotageSignatureManager("wrong_user");
 			StatusRuntimeException e = assertThrows(StatusRuntimeException.class, () -> client.openAccount(nonce));
@@ -24,6 +25,7 @@ public class AuthIT extends BaseIT {
 	@Test
 	void clientWrongNonceTest() {
 		try {
+			client.changeUser("user2");
 			long nonce = 0;
 			StatusRuntimeException e = assertThrows(StatusRuntimeException.class, () -> client.openAccount(nonce));
 			assertSame(INVALID_ARGUMENT.getCode(), e.getStatus().getCode());

@@ -8,38 +8,29 @@ import pt.tecnico.sec.bftb.client.Client;
 import pt.tecnico.sec.bftb.client.exceptions.KeyPairGenerationFailedException;
 import pt.tecnico.sec.bftb.client.exceptions.KeyPairLoadingFailedException;
 
-import java.io.IOException;
 import java.security.cert.CertificateException;
 
 public class BaseIT {
-
-	protected static Client client;
+	static Client client;
 
 	@BeforeAll
-	public static void oneTimeSetup () {
-		try {
-			Process server = Runtime.getRuntime().exec("mvn exec:java -pl server");
-			client = new Client("localhost:44444");
-		} catch (IOException e) {
-			// TODO handle exception
-		}
-		catch (KeyPairLoadingFailedException | KeyPairGenerationFailedException | CertificateException e) {
-			// TODO handle exception
-		}
+	static void oneTimeSetup() {
+
 	}
 
 	@AfterAll
-	public static void oneTimeCleanup() {
+	static void oneTimeCleanup() {
 
 	}
 
 	@BeforeEach
-	public static void eachSetup() {
-
+	public void eachSetup()
+			throws KeyPairLoadingFailedException, KeyPairGenerationFailedException, CertificateException {
+		client = new Client("localhost:29292");
 	}
 
 	@AfterEach
-	public static void eachCleanup() {
+	public void eachCleanup() {
 
 	}
 }
