@@ -31,19 +31,16 @@ public class Client {
 
 	private final List<GeneratedMessageV3> debugRequestHistory = new LinkedList<>();
 
-	public Client(PublicKey userPublicKey, PrivateKey userPrivateKey, String serverURI) throws CertificateException {
-		ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
-		this.stub = ServerServiceGrpc.newBlockingStub(channel);
-		this.signatureManager = new SignatureManager(userPrivateKey);
-		this.userPublicKey = userPublicKey;
-		this.userPrivateKey = userPrivateKey;
-		this.serverPublicKey = Resources.getServerPublicKey();
-	}
-
 	public Client(String serverURI)
 			throws CertificateException, KeyPairLoadingFailedException, KeyPairGenerationFailedException {
+		ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
+		this.stub = ServerServiceGrpc.newBlockingStub(channel);
 		// Default user ID is "user", just for simplicity
-		this(Resources.getPublicKeyByUserId("user"), Resources.getPrivateKeyByUserId("user"), serverURI);
+		Resources.init();
+		this.userPublicKey = Resources.getPublicKeyByUserId("user");
+		this.userPrivateKey = Resources.getPrivateKeyByUserId("user");
+		this.signatureManager = new SignatureManager(this.userPrivateKey);
+		this.serverPublicKey = Resources.getServerPublicKey();
 	}
 
 	public List<GeneratedMessageV3> getDebugRequestHistory() {

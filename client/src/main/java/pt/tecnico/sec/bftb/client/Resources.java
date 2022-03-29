@@ -1,36 +1,41 @@
 package pt.tecnico.sec.bftb.client;
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import pt.tecnico.sec.bftb.client.exceptions.KeyPairGenerationFailedException;
 import pt.tecnico.sec.bftb.client.exceptions.KeyPairLoadingFailedException;
 import pt.tecnico.sec.bftb.client.exceptions.LoadKeyStoreFailedException;
 import pt.tecnico.sec.bftb.client.exceptions.SaveKeyStoreFailedException;
 
+import javax.security.auth.x500.X500Principal;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigInteger;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.*;
+import java.security.cert.*;
 import java.security.cert.Certificate;
-import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
-import java.security.cert.X509Certificate;
+import java.util.Date;
+
+import org.bouncycastle.jce.X509Principal;
+import org.bouncycastle.x509.X509V3CertificateGenerator;
 
 public class Resources {
 	private static final String SERVER_CERT_PATH = "servercert";
 	private static final String SERVER_CERT_FILENAME = "cert.pem";
 	private static final String KEYSTORE_FILENAME = "keystore.jks";
 	private static final String KEYSTORE_PWD = "sec2122";
-	public static final String PRIVATE_SUFFIX = ".private";
-	public static final String PUBLIC_SUFFIX = ".public";
+	private static final String CERTIFICATE_DN = "CN=BFTB-G35, O=IST, L=Lisbon, ST=Lisbon, C=PT";
 
 	private Resources() { /* empty */ }
 
-	public void init() {
+	public static void init() {
+		Security.addProvider(new BouncyCastleProvider());
 		// Create empty keystore if it doesn't exist yet
 		try {
 			String keyStorePathString = getAbsolutePathOfResource(KEYSTORE_FILENAME);
@@ -47,11 +52,10 @@ public class Resources {
 		}
 	}
 
-	private static String getAbsolutePathOfResource(String path) throws URISyntaxException {
-		String pathString = Path.of(path).toString();
-		URL pathURL = Resources.class.getClassLoader().getResource(pathString);
+	private static String getAbsolutePathOfResource(String relativePath) throws URISyntaxException {
+		URL pathURL = Resources.class.getClassLoader().getResource(".");
 		assert pathURL != null;
-		return Paths.get(pathURL.toURI()).toString();
+		return Paths.get(pathURL.toURI()).resolve(relativePath).toString();
 	}
 
 	public static PublicKey getPublicKeyByUserId(String userId)
@@ -59,12 +63,12 @@ public class Resources {
 		try {
 			// Check if userId exists, if not, generate new keypair for it
 			KeyStore keyStore = getKeyStore();
-			if (!keyStore.containsAlias(userId + PUBLIC_SUFFIX)) generateKeyPair(userId);
+			if (!keyStore.containsAlias(userId)) generateKeyPair(userId);
 
 			keyStore = getKeyStore();
-			return (PublicKey) keyStore.getKey(userId + PUBLIC_SUFFIX, KEYSTORE_PWD.toCharArray());
+			return keyStore.getCertificate(userId).getPublicKey();
 		}
-		catch (NoSuchAlgorithmException | LoadKeyStoreFailedException | KeyStoreException | UnrecoverableKeyException e) {
+		catch (LoadKeyStoreFailedException | KeyStoreException e) {
 			throw new KeyPairLoadingFailedException(e);
 		}
 	}
@@ -74,10 +78,10 @@ public class Resources {
 		try {
 			// Check if userId exists, if not, generate new keypair for it
 			KeyStore keyStore = getKeyStore();
-			if (!keyStore.containsAlias(userId + PRIVATE_SUFFIX)) generateKeyPair(userId);
+			if (!keyStore.containsAlias(userId)) generateKeyPair(userId);
 
 			keyStore = getKeyStore();
-			return (PrivateKey) keyStore.getKey(userId + PRIVATE_SUFFIX, KEYSTORE_PWD.toCharArray());
+			return (PrivateKey) keyStore.getKey(userId, KEYSTORE_PWD.toCharArray());
 		}
 		catch (NoSuchAlgorithmException | LoadKeyStoreFailedException | KeyStoreException | UnrecoverableKeyException e) {
 			throw new KeyPairLoadingFailedException(e);
@@ -94,8 +98,8 @@ public class Resources {
 
 			KeyStore keyStore = getKeyStore();
 
-			keyStore.setKeyEntry(userId + PRIVATE_SUFFIX, privateKey, KEYSTORE_PWD.toCharArray(), new Certificate[] {});
-			keyStore.setKeyEntry(userId + PUBLIC_SUFFIX, publicKey, KEYSTORE_PWD.toCharArray(), new Certificate[] {});
+			keyStore.setKeyEntry(userId, privateKey, KEYSTORE_PWD.toCharArray(),
+					new Certificate[] {generateSelfSignedCertificate(privateKey, publicKey)});
 
 			saveKeyStore(keyStore);
 		}
@@ -135,5 +139,25 @@ public class Resources {
 		CertificateFactory f = CertificateFactory.getInstance("X.509");
 		X509Certificate certificate = (X509Certificate) f.generateCertificate(certStream);
 		return certificate.getPublicKey();
+	}
+
+	@SuppressWarnings("deprecation")
+	private static X509Certificate generateSelfSignedCertificate(PrivateKey privateKey, PublicKey publicKey) {
+		try {
+			// Generate self-signed certificate
+			X509V3CertificateGenerator v3CertGen =  new X509V3CertificateGenerator();
+			v3CertGen.setSerialNumber(BigInteger.valueOf(System.currentTimeMillis()));
+			v3CertGen.setIssuerDN(new X509Principal(CERTIFICATE_DN));
+			v3CertGen.setNotBefore(new Date(System.currentTimeMillis() - (1000L * 60 * 60 * 24)));
+			v3CertGen.setNotAfter(new Date(System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 365 * 10)));
+			v3CertGen.setSubjectDN(new X509Principal(CERTIFICATE_DN));
+			v3CertGen.setPublicKey(publicKey);
+			v3CertGen.setSignatureAlgorithm("SHA256WithRSAEncryption");
+			return v3CertGen.generateX509Certificate(privateKey);
+		}
+		catch (SignatureException | InvalidKeyException e) {
+			//TODO Auto-generated catch block
+			throw new RuntimeException(e);
+		}
 	}
 }
