@@ -2,6 +2,7 @@ package pt.tecnico.sec.bftb.server;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
@@ -92,8 +93,32 @@ public class Account implements Serializable {
 		return Collections.unmodifiableList(transferHistory);
 	}
 
-	public String getHash() throws NoSuchAlgorithmException {
-		byte[] hash = MessageDigest.getInstance("SHA-256").digest(publicKey.getEncoded());
-		return String.format("%064x", new java.math.BigInteger(1, hash));
+	public byte[] getHash() throws NoSuchAlgorithmException {
+		return MessageDigest.getInstance("SHA-256").digest(publicKey.getEncoded());
 	}
+
+	public BigInteger getBigIntHash() throws NoSuchAlgorithmException {
+		return new BigInteger(1, getHash());
+	}
+
+	public String getStringHash() throws NoSuchAlgorithmException {
+		return String.format("%064x", getBigIntHash());
+	}
+
+	// To prevent deadlocks, we define a way to compare accounts based on the hash of their public keys:
+
+	public static Account getFirstSyncAccount(Account a1, Account a2) throws NoSuchAlgorithmException {
+		if (a1.getBigIntHash().compareTo(a2.getBigIntHash()) < 0)
+			return a1;
+		else
+			return a2;
+	}
+
+	public static Account getSecondSyncAccount(Account a1, Account a2) throws NoSuchAlgorithmException {
+		if (a1.getBigIntHash().compareTo(a2.getBigIntHash()) < 0)
+			return a2;
+		else
+			return a1;
+	}
+
 }

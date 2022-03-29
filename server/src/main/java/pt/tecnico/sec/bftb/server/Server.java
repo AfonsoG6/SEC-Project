@@ -2,6 +2,7 @@ package pt.tecnico.sec.bftb.server;
 
 import pt.tecnico.sec.bftb.server.exceptions.*;
 
+import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -46,19 +47,39 @@ public class Server {
 		return accounts.get(publicKey);
 	}
 
-	private void backupRelevantState(Account source, Account destination, Transfer transfer)
+	private void syncedBackupRelevantState(Account source, Account destination, Transfer transfer)
 			throws RestorePreviousStateFailedException {
 		try {
+			synchronized (Account.getFirstSyncAccount(source, destination)) {
+				synchronized (Account.getSecondSyncAccount(source, destination)) {
+					synchronized (transfer) {
+						backupRelevantState(source, destination, transfer);
+					}
+				}
+			}
+		}
+		catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+			throw new RestorePreviousStateFailedException(e);
+		}
+	}
+
+	private void backupRelevantState(Account source, Account destination, Transfer transfer)
+			throws RestorePreviousStateFailedException {
+		int stage = 0;
+		try {
 			Resources.saveTransfer(transfer);
+			stage = 1;
 			Resources.saveAccount(source);
+			stage = 2;
 			Resources.saveAccount(destination);
 		}
 		catch (TransferSavingFailedException | AccountSavingFailedException e) {
-			// If the backup fails, we should revert the changes
+			// If the backup fails, we should revert the changes (This is just an approximation, but it's better than nothing)
 			e.printStackTrace();
-			transfers.replace(transfer.getID(), Resources.restorePreviousState(transfer));
-			accounts.replace(source.getPublicKey(), Resources.restorePreviousState(source));
-			accounts.replace(destination.getPublicKey(), Resources.restorePreviousState(destination));
+			if (stage >= 1) transfers.replace(transfer.getID(), Resources.restorePreviousState(transfer));
+			if (stage >= 2) accounts.replace(source.getPublicKey(), Resources.restorePreviousState(source));
+			throw new RestorePreviousStateFailedException(e);
 		}
 	}
 
@@ -71,7 +92,9 @@ public class Server {
 	public int getBalance(PublicKey publicKey) throws AccountDoesNotExistException {
 		Account account = findAccount(publicKey);
 		if (account == null) throw new AccountDoesNotExistException();
-		return account.getBalance();
+		synchronized (account) {
+			return account.getBalance();
+		}
 	}
 
 	// Check Account (part 2):
@@ -79,14 +102,18 @@ public class Server {
 	public String getPendingTransfers(PublicKey publicKey) throws AccountDoesNotExistException {
 		Account account = findAccount(publicKey);
 		if (account == null) throw new AccountDoesNotExistException();
-		return buildPendingTransfersString(account.getPendingIncomingTransferIDs());
+		synchronized (account) {
+			return buildPendingTransfersString(account.getPendingIncomingTransferIDs());
+		}
 	}
 
 	public String buildPendingTransfersString(List<Long> transferIDs) {
 		StringBuilder pendingTransfersString = new StringBuilder();
 		for (int i = 0; i < transferIDs.size(); i++) {
 			Transfer transfer = transfers.get(transferIDs.get(i));
-			pendingTransfersString.append("INCOMING TRANSFER no.%d: %s%n".formatted(i, transfer.toString()));
+			synchronized (transfer) {
+				pendingTransfersString.append("INCOMING TRANSFER no.%d: %s%n".formatted(i, transfer.toString()));
+			}
 		}
 		return pendingTransfersString.toString();
 	}
@@ -95,27 +122,33 @@ public class Server {
 
 	public void sendAmount(PublicKey sourceKey, PublicKey destinationKey, int amount)
 			throws AccountDoesNotExistException, AmountTooLowException, BalanceTooLowException,
-			RestorePreviousStateFailedException {
+			RestorePreviousStateFailedException, NoSuchAlgorithmException {
 		if (amount <= 0) throw new AmountTooLowException();
 		Account source = findAccount(sourceKey);
 		if (source == null) throw new AccountDoesNotExistException();
 		Account destination = findAccount(destinationKey);
 		if (destination == null) throw new AccountDoesNotExistException();
-		if (!source.canDecrement(amount)) throw new BalanceTooLowException();
-		long newID = getNewIDForTransfer();
-		Transfer transfer = new Transfer(newID, sourceKey, destinationKey, amount);
-		transfers.put(transfer.getID(), transfer);
-		destination.addPendingIncomingTransfer(transfer.getID());
-		source.addTransfer(transfer.getID());
-		// Backup the state of the relevant objects
-		backupRelevantState(source, destination, transfer);
+		synchronized (Account.getFirstSyncAccount(source, destination)) {
+			synchronized (Account.getSecondSyncAccount(source, destination)) {
+				if (!source.canDecrement(amount)) throw new BalanceTooLowException();
+				long newID = getNewIDForTransfer();
+				Transfer transfer = new Transfer(newID, sourceKey, destinationKey, amount);
+				synchronized (transfer) {
+					transfers.put(transfer.getID(), transfer);
+					destination.addPendingIncomingTransfer(transfer.getID());
+					source.addTransfer(transfer.getID());
+					// Backup the state of the relevant objects
+					syncedBackupRelevantState(source, destination, transfer);
+				}
+			}
+		}
 	}
 
 	// Receive Amount:
 
 	public void receiveAmount(PublicKey publicKey, int transferNum)
 			throws AccountDoesNotExistException, BalanceTooLowException, InvalidTransferNumberException,
-			RestorePreviousStateFailedException {
+			RestorePreviousStateFailedException, NoSuchAlgorithmException {
 		Account destination = findAccount(publicKey);
 		if (destination == null) throw new AccountDoesNotExistException();
 		if (!destination.isPendingTransferNumValid(transferNum)) throw new InvalidTransferNumberException();
@@ -125,14 +158,20 @@ public class Server {
 		Account source = findAccount(sourceKey);
 		if (source == null) throw new AccountDoesNotExistException();
 		int amount = transfer.getAmount();
-		if (!source.canDecrement(amount)) throw new BalanceTooLowException();
-		// TRANSACTION
-		source.decrementBalance(amount);
-		destination.incrementBalance(amount);
-		destination.approveIncomingTransfer(transferNum);
-		this.transfers.get(transferID).approve();
-		// Backup the state of the relevant objects
-		backupRelevantState(source, destination, transfer);
+		synchronized (Account.getFirstSyncAccount(source, destination)) {
+			synchronized (Account.getSecondSyncAccount(source, destination)) {
+				synchronized (transfer) {
+					if (!source.canDecrement(amount)) throw new BalanceTooLowException();
+					// TRANSACTION
+					source.decrementBalance(amount);
+					destination.incrementBalance(amount);
+					destination.approveIncomingTransfer(transferNum);
+					transfer.approve();
+					// Backup the state of the relevant objects
+					syncedBackupRelevantState(source, destination, transfer);
+				}
+			}
+		}
 	}
 
 	// Audit:
@@ -140,7 +179,9 @@ public class Server {
 	public String getApprovedTransfers(PublicKey publicKey) throws AccountDoesNotExistException {
 		Account account = findAccount(publicKey);
 		if (account == null) throw new AccountDoesNotExistException();
-		return buildTransferHistoryString(account.getPublicKey(), account.getTransferIDsHistory());
+		synchronized (account) {
+			return buildTransferHistoryString(account.getPublicKey(), account.getTransferIDsHistory());
+		}
 	}
 
 	private String buildTransferHistoryString(PublicKey userPublicKey, List<Long> transferIDs) {
@@ -148,8 +189,10 @@ public class Server {
 		for (int i = 0; i < transferIDs.size(); i++) {
 			Long transferID = transferIDs.get(i);
 			Transfer transfer = this.transfers.get(transferID);
-			String direction = (userPublicKey.equals(transfer.getSourceKey())) ? "OUTGOING" : "INCOMING";
-			builder.append("%s TRANSFER no.%d: %s%n".formatted(direction, i, transfer.toString()));
+			synchronized (transfer) {
+				String direction = (userPublicKey.equals(transfer.getSourceKey())) ? "OUTGOING" : "INCOMING";
+				builder.append("%s TRANSFER no.%d: %s%n".formatted(direction, i, transfer.toString()));
+			}
 		}
 		return builder.toString();
 	}

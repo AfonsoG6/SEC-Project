@@ -80,7 +80,7 @@ public class Resources {
 
 	public static Account restorePreviousState(Account account) throws RestorePreviousStateFailedException {
 		try {
-			String pathString = Path.of(getAbsolutePathOfResource(ACCOUNTS_PATH), account.getHash()).toString();
+			String pathString = Path.of(getAbsolutePathOfResource(ACCOUNTS_PATH), account.getStringHash()).toString();
 			if (!Files.exists(Paths.get(pathString + ".old")))
 				throw new RestorePreviousStateFailedException("No previous state to restore");
 			File oldFile = new File(pathString + ".old");
@@ -112,7 +112,7 @@ public class Resources {
 
 	public static void saveAccount(Account account) throws AccountSavingFailedException {
 		try {
-			String accountIdentifier = account.getHash();
+			String accountIdentifier = account.getStringHash();
 			String accountsPathString = getAbsolutePathOfResource(ACCOUNTS_PATH);
 			String pathString = Path.of(accountsPathString, accountIdentifier).toString();
 			keepPreviousState(pathString);
