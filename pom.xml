@@ -40,6 +40,7 @@
         <module>client</module>
         <module>contract</module>
         <module>server</module>
+        <module>tester</module>
     </modules>
 
     <build>

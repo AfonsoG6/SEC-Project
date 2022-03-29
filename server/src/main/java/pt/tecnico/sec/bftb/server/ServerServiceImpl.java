@@ -44,7 +44,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
 			long nonceToServer = signatureManager.decypherNonce(content.getCypheredNonce().toByteArray());
 			byte[] clientSignature = request.getSignature().toByteArray();
-			if (signatureManager.isSignatureValid(publicKey, clientSignature, content.toByteArray())) {
+			if (signatureManager.isSignatureInvalid(publicKey, clientSignature, content.toByteArray())) {
 				responseObserver.onError(INVALID_ARGUMENT.withDescription(INVALID_SIGNATURE).asRuntimeException());
 				return;
 			}
@@ -83,7 +83,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			int amount = content.getAmount();
 			long nonceToServer = signatureManager.decypherNonce(content.getCypheredNonce().toByteArray());
 			byte[] clientSignature = request.getSignature().toByteArray();
-			if (signatureManager.isSignatureValid(sourceKey, clientSignature, content.toByteArray())) {
+			if (signatureManager.isSignatureInvalid(sourceKey, clientSignature, content.toByteArray())) {
 				responseObserver.onError(INVALID_ARGUMENT.withDescription(INVALID_SIGNATURE).asRuntimeException());
 				return;
 			}
@@ -119,7 +119,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
 			long nonceToServer = signatureManager.decypherNonce(content.getCypheredNonce().toByteArray());
 			byte[] clientSignature = request.getSignature().toByteArray();
-			if (signatureManager.isSignatureValid(publicKey, clientSignature, content.toByteArray())) {
+			if (signatureManager.isSignatureInvalid(publicKey, clientSignature, content.toByteArray())) {
 				responseObserver.onError(INVALID_ARGUMENT.withDescription(INVALID_SIGNATURE).asRuntimeException());
 				return;
 			}
@@ -162,7 +162,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
 			long nonceToServer = signatureManager.decypherNonce(content.getCypheredNonce().toByteArray());
 			byte[] clientSignature = request.getSignature().toByteArray();
-			if (signatureManager.isSignatureValid(publicKey, clientSignature, content.toByteArray())) {
+			if (signatureManager.isSignatureInvalid(publicKey, clientSignature, content.toByteArray())) {
 				responseObserver.onError(INVALID_ARGUMENT.withDescription(INVALID_SIGNATURE).asRuntimeException());
 				return;
 			}
@@ -199,7 +199,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
 			long nonceToServer = signatureManager.decypherNonce(content.getCypheredNonce().toByteArray());
 			byte[] clientSignature = request.getSignature().toByteArray();
-			if (signatureManager.isSignatureValid(publicKey, clientSignature, content.toByteArray())) {
+			if (signatureManager.isSignatureInvalid(publicKey, clientSignature, content.toByteArray())) {
 				responseObserver.onError(INVALID_ARGUMENT.withDescription(INVALID_SIGNATURE).asRuntimeException());
 				return;
 			}

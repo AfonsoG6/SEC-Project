@@ -62,7 +62,7 @@ public class SignatureManager {
 		return cypherNonce(peerPublicKey, nonce);
 	}
 
-	public boolean isSignatureValid(PublicKey peerPublicKey, byte[] signature, byte[] content) throws
+	public boolean isSignatureInvalid(PublicKey peerPublicKey, byte[] signature, byte[] content) throws
 			SignatureVerificationFailedException {
 		try {
 			if (!currentNonces.containsKey(peerPublicKey))
@@ -89,9 +89,9 @@ public class SignatureManager {
 		}
 	}
 
-	public boolean isSignatureValid(PublicKey peerPublicKey, byte[] signature) throws
+	public boolean isSignatureInvalid(PublicKey peerPublicKey, byte[] signature) throws
 			SignatureVerificationFailedException {
-		return isSignatureValid(peerPublicKey, signature, new byte[0]);
+		return isSignatureInvalid(peerPublicKey, signature, new byte[0]);
 	}
 
 	public byte[] sign(long nonce, byte[] content) throws CypherFailedException {
