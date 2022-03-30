@@ -74,9 +74,19 @@ options.
 
 *Note:* If the intended hostname contains a `.` (dot), you must use quotes around it (ex: `-Dsvhost="127.0.0.1"`).
 
-### Testing and Demo
+### Running the tests
 
+To run the existing tests, first you must run the server:
 
+```shell
+mvn exec:java -pl server
+```
+
+Then, open a terminal and type:
+
+```shell
+mvn verify
+```
 
 ## Built With
 
