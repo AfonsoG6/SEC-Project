@@ -19,13 +19,13 @@ class ReplayIT extends BaseIT {
 			client.openAccount();
 			client.changeUser("user4");
 			client.openAccount();
-			assertDoesNotThrow(() -> client.sendAmount("user3", 50));
+			assertDoesNotThrow(() -> client.sendAmount("user3", 5));
 			List<GeneratedMessageV3> requestHistory = client.getDebugRequestHistory();
 			SignedSendAmountRequest sentRequest = (SignedSendAmountRequest) requestHistory.get(requestHistory.size() - 1);
 			assertThrows(StatusRuntimeException.class, () -> client.debugSendRequest(sentRequest));
 		}
 		catch (Exception e) {
-			fail("Exception during setup");
+			fail("Unexpected exception: " + e.getMessage());
 		}
 	}
 
@@ -36,7 +36,7 @@ class ReplayIT extends BaseIT {
 			client.openAccount();
 			client.changeUser("user6");
 			client.openAccount();
-			client.sendAmount("user5", 50);
+			client.sendAmount("user5", 5);
 			client.changeUser("user5");
 			assertDoesNotThrow(() -> client.receiveAmount(0));
 			List<GeneratedMessageV3> requestHistory = client.getDebugRequestHistory();
@@ -44,7 +44,7 @@ class ReplayIT extends BaseIT {
 			assertThrows(StatusRuntimeException.class, () -> client.debugSendRequest(sentRequest));
 		}
 		catch (Exception e) {
-			fail("Exception during setup");
+			fail("Unexpected exception: " + e.getMessage());
 		}
 	}
 }

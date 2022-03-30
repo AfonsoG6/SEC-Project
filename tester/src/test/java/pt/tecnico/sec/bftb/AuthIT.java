@@ -28,7 +28,7 @@ class AuthIT extends BaseIT {
 			client.changeUser("user2");
 			long nonce = 0;
 			StatusRuntimeException e = assertThrows(StatusRuntimeException.class, () -> client.openAccount(nonce));
-			assertSame(INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
+			assertTrue(INVALID_ARGUMENT.getCode() == e.getStatus().getCode() || INTERNAL.getCode() == e.getStatus().getCode());
 		} catch (Exception e) {
 			fail("Unexpected exception: " + e.getMessage());
 		}
