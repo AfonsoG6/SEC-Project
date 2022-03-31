@@ -9,12 +9,17 @@ import pt.tecnico.sec.bftb.client.exceptions.*;
 import pt.tecnico.sec.bftb.server.grpc.Server.*;
 import pt.tecnico.sec.bftb.server.grpc.ServerServiceGrpc;
 
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.CertificateException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.Base64;
 
 public class Client {
 
@@ -201,6 +206,26 @@ public class Client {
 		}
 	}
 
+	private String buildTransferListString(List<TransferFields> transferFieldsList)
+			throws InvalidKeySpecException, NoSuchAlgorithmException {
+		StringBuilder builder = new StringBuilder();
+		for (int i = 0; i < transferFieldsList.size(); i++) {
+			TransferFields transferFields = transferFieldsList.get(i);
+			byte[] sourceKeyBytes = transferFields.getSourceKey().toByteArray();
+			PublicKey sourceKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(sourceKeyBytes));
+			String sourceKeyString = Base64.getEncoder().encodeToString(sourceKey.getEncoded());
+			byte[] destinationKeyBytes = transferFields.getDestinationKey().toByteArray();
+			PublicKey destinationKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(destinationKeyBytes));
+			String destinationKeyString = Base64.getEncoder().encodeToString(destinationKey.getEncoded());
+			int amount = transferFields.getAmount();
+			boolean pending = transferFields.getPending();
+			String pendingStatus = pending ? "[Pending]" : "[Approved]";
+			String direction = (userPublicKey.equals(sourceKey)) ? "OUTGOING" : "INCOMING";
+			builder.append("%s TRANSFER no.%d: %s $ %d from %s to %s%n".formatted(direction, i, pendingStatus, amount, sourceKeyString, destinationKeyString));
+		}
+		return builder.toString();
+	}
+
 	public void checkAccount() {
 		try {
 			long nonceToClient = requestNonce();
@@ -208,13 +233,13 @@ public class Client {
 			if (response == null) return;
 			System.out.println("Balance: " + response.getContent().getBalance());
 			System.out.println("Pending Transfers: ");
-			System.out.println(response.getContent().getPendingTransfers());
+			System.out.println(buildTransferListString(response.getContent().getPendingTransfersList()));
 		}
 		catch (StatusRuntimeException e) {
 			System.out.println(SERVER_ERROR_PREFIX + e.getStatus().getDescription());
 			System.out.println(OPERATION_FAILED);
 		}
-		catch (CypherFailedException | NonceRequestFailedException | SignatureVerificationFailedException e) {
+		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | NonceRequestFailedException | SignatureVerificationFailedException e) {
 			System.out.println(ERROR_PREFIX + e.getMessage());
 			System.out.println(OPERATION_FAILED);
 		}
@@ -289,13 +314,13 @@ public class Client {
 			long nonceToClient = requestNonce();
 			SignedAuditResponse response = audit(nonceToClient);
 			System.out.println("Transaction History: ");
-			System.out.println(response.getContent().getHistory());
+			System.out.println(buildTransferListString(response.getContent().getHistoryList()));
 		}
 		catch (StatusRuntimeException e) {
 			System.out.println(SERVER_ERROR_PREFIX + e.getStatus().getDescription());
 			System.out.println(OPERATION_FAILED);
 		}
-		catch (CypherFailedException | NonceRequestFailedException | SignatureVerificationFailedException e) {
+		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | NonceRequestFailedException | SignatureVerificationFailedException e) {
 			System.out.println(ERROR_PREFIX + e.getMessage());
 			System.out.println(OPERATION_FAILED);
 		}

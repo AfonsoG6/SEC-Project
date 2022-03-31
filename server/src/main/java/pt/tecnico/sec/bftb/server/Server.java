@@ -1,9 +1,12 @@
 package pt.tecnico.sec.bftb.server;
 
 import pt.tecnico.sec.bftb.server.exceptions.*;
+import pt.tecnico.sec.bftb.server.grpc.Server.TransferFields;
+import com.google.protobuf.ByteString;
 
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -99,23 +102,29 @@ public class Server {
 
 	// Check Account (part 2):
 
-	public String getPendingTransfers(PublicKey publicKey) throws AccountDoesNotExistException {
+	public List<TransferFields> getPendingTransfers(PublicKey publicKey) throws AccountDoesNotExistException {
 		Account account = findAccount(publicKey);
 		if (account == null) throw new AccountDoesNotExistException();
 		synchronized (account) {
-			return buildPendingTransfersString(account.getPendingIncomingTransferIDs());
+			return buildTransferFields(account.getPendingIncomingTransferIDs());
 		}
 	}
 
-	public String buildPendingTransfersString(List<Long> transferIDs) {
-		StringBuilder pendingTransfersString = new StringBuilder();
+	public List<TransferFields> buildTransferFields(List<Long> transferIDs) {
+		List<TransferFields> transferFieldsList = new ArrayList<TransferFields>();
 		for (int i = 0; i < transferIDs.size(); i++) {
 			Transfer transfer = transfers.get(transferIDs.get(i));
 			synchronized (transfer) {
-				pendingTransfersString.append("INCOMING TRANSFER no.%d: %s%n".formatted(i, transfer.toString()));
+				TransferFields.Builder builder = TransferFields.newBuilder();
+				builder.setSourceKey(ByteString.copyFrom(transfer.getSourceKey().getEncoded()));
+				builder.setDestinationKey(ByteString.copyFrom(transfer.getSourceKey().getEncoded()));
+				builder.setAmount(transfer.getAmount());
+				builder.setPending(transfer.getPending());
+				TransferFields transferFields = builder.build();;
+				transferFieldsList.add(transferFields);
 			}
 		}
-		return pendingTransfersString.toString();
+		return transferFieldsList;
 	}
 
 	// Send Amount:
@@ -176,24 +185,11 @@ public class Server {
 
 	// Audit:
 
-	public String getApprovedTransfers(PublicKey publicKey) throws AccountDoesNotExistException {
+	public List<TransferFields> getApprovedTransfers(PublicKey publicKey) throws AccountDoesNotExistException {
 		Account account = findAccount(publicKey);
 		if (account == null) throw new AccountDoesNotExistException();
 		synchronized (account) {
-			return buildTransferHistoryString(account.getPublicKey(), account.getTransferIDsHistory());
+			return buildTransferFields(account.getTransferIDsHistory());
 		}
-	}
-
-	private String buildTransferHistoryString(PublicKey userPublicKey, List<Long> transferIDs) {
-		StringBuilder builder = new StringBuilder();
-		for (int i = 0; i < transferIDs.size(); i++) {
-			Long transferID = transferIDs.get(i);
-			Transfer transfer = this.transfers.get(transferID);
-			synchronized (transfer) {
-				String direction = (userPublicKey.equals(transfer.getSourceKey())) ? "OUTGOING" : "INCOMING";
-				builder.append("%s TRANSFER no.%d: %s%n".formatted(direction, i, transfer.toString()));
-			}
-		}
-		return builder.toString();
 	}
 }

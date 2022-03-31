@@ -53,12 +53,19 @@ message SignedCheckAccountRequest {
 
 message CheckAccountResponse {
   int32 balance = 1;
-  string pendingTransfers = 2;
+  repeated TransferFields pendingTransfers = 2;
 }
 
 message SignedCheckAccountResponse {
   CheckAccountResponse content = 1;
   bytes signature = 2; // Signature created by the SERVER
+}
+
+message TransferFields {
+	bytes sourceKey = 2;
+	bytes destinationKey = 3;
+	int32 amount = 4;
+	bool pending = 5;
 }
 
 //--------------------------------------------Receive Amount Operation--------------------------------------------------
@@ -93,7 +100,7 @@ message SignedAuditRequest {
 }
 
 message AuditResponse {
-  string history = 1;
+  repeated TransferFields history = 1;
 }
 
 message SignedAuditResponse {

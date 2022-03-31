@@ -23,6 +23,10 @@ public class Transfer implements Serializable {
 		this.pending = true;
 	}
 
+	public long getID() {
+		return this.id;
+	}
+
 	public PublicKey getSourceKey() {
 		return sourceKey;
 	}
@@ -35,20 +39,20 @@ public class Transfer implements Serializable {
 		return amount;
 	}
 
+	public boolean getPending() {
+		return pending;
+	}
+
 	public void approve() {
 		this.pending = false;
 	}
 
 	@Override
 	public String toString() {
-		return ((this.pending) ? "[Pending]" : "")
+		return ((this.pending) ? "[Pending]" : "[Approved]")
 				+ " $" + this.amount + " from "
 				+ Base64.getEncoder().encodeToString(this.sourceKey.getEncoded())
 				+ " to "
 				+ Base64.getEncoder().encodeToString(this.destinationKey.getEncoded());
-	}
-
-	public long getID() {
-		return this.id;
 	}
 }

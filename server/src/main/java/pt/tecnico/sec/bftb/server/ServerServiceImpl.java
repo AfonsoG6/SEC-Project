@@ -123,12 +123,10 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 				responseObserver.onError(INVALID_ARGUMENT.withDescription(INVALID_SIGNATURE).asRuntimeException());
 				return;
 			}
-			int balance = server.getBalance(publicKey);
-			String transfers = server.getPendingTransfers(publicKey);
 			// Build Response
 			CheckAccountResponse.Builder builder = CheckAccountResponse.newBuilder();
-			builder.setBalance(balance);
-			builder.setPendingTransfers(transfers);
+			builder.setBalance(server.getBalance(publicKey));
+			builder.addAllPendingTransfers(server.getPendingTransfers(publicKey));
 			CheckAccountResponse response = builder.build();
 			// Build Signed Response
 			SignedCheckAccountResponse.Builder signedBuilder = SignedCheckAccountResponse.newBuilder();
@@ -205,7 +203,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			}
 			// Build Response
 			AuditResponse.Builder builder = AuditResponse.newBuilder();
-			builder.setHistory(server.getApprovedTransfers(publicKey));
+			builder.addAllHistory(server.getApprovedTransfers(publicKey));
 			AuditResponse response = builder.build();
 			// Build Signed Response
 			SignedAuditResponse.Builder signedBuilder = SignedAuditResponse.newBuilder();
