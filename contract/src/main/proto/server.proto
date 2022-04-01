@@ -62,10 +62,10 @@ message SignedCheckAccountResponse {
 }
 
 message TransferFields {
-	bytes sourceKey = 2;
-	bytes destinationKey = 3;
-	int32 amount = 4;
-	bool pending = 5;
+	bytes sourceKey = 1;
+	bytes destinationKey = 2;
+	int32 amount = 3;
+	bool pending = 4;
 }
 
 //--------------------------------------------Receive Amount Operation--------------------------------------------------

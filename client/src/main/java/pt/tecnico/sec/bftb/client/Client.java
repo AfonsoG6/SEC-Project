@@ -219,8 +219,8 @@ public class Client {
 			String destinationKeyString = Base64.getEncoder().encodeToString(destinationKey.getEncoded());
 			int amount = transferFields.getAmount();
 			boolean pending = transferFields.getPending();
-			String pendingStatus = pending ? "[Pending]" : "[Approved]";
 			String direction = (userPublicKey.equals(sourceKey)) ? "OUTGOING" : "INCOMING";
+			String pendingStatus = pending ? "[Pending]" : "[Approved]";
 			builder.append("%s TRANSFER no.%d: %s $ %d from %s to %s%n".formatted(direction, i, pendingStatus, amount, sourceKeyString, destinationKeyString));
 		}
 		return builder.toString();
