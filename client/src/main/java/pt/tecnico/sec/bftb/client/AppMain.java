@@ -3,6 +3,10 @@ package pt.tecnico.sec.bftb.client;
 import pt.tecnico.sec.bftb.client.exceptions.KeyPairGenerationFailedException;
 import pt.tecnico.sec.bftb.client.exceptions.KeyPairLoadingFailedException;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.security.cert.CertificateException;
 import java.util.Scanner;
 import java.util.regex.PatternSyntaxException;
@@ -24,7 +28,8 @@ public class AppMain {
 	static Client client;
 
 	public static void main(String[] args)
-			throws CertificateException, KeyPairLoadingFailedException, KeyPairGenerationFailedException {
+			throws CertificateException, KeyPairLoadingFailedException, KeyPairGenerationFailedException,
+			IOException {
 		System.out.println(AppMain.class.getSimpleName());
 
 		// receive and print arguments
@@ -34,35 +39,47 @@ public class AppMain {
 		}
 
 		// Check number of arguments
-		if (args.length != 2) {
+		if (args.length != 2 && args.length != 3) {
 			System.out.println("Invalid number of arguments. Aborting!");
-			System.out.println("Usage: AppMain <serverHostname> <serverPort> <userID>");
+			System.out.println("Usage: AppMain <serverHostname> <serverPort> [inputFile]");
 			return;
 		}
 		// Checks if file was redirected
-		boolean fileRed = (System.console() == null);
+		boolean hasInputFileArg = (args.length == 3 && args[2] != null && !args[2].isEmpty());
 
 		String serverURI = args[0] + ":" + args[1];
+		if (hasInputFileArg) {
+			try (InputStream scannerIS = new FileInputStream(args[2])) {
+				scanInput(true, scannerIS, serverURI);
+			}
+		}
 
+		boolean recvdInputFile = System.console() == null;
+		scanInput(recvdInputFile, System.in, serverURI);
+	}
+
+	private static void scanInput(boolean recvdInputFile, InputStream scannerIS, String serverURI)
+			throws CertificateException, KeyPairLoadingFailedException, KeyPairGenerationFailedException {
 		client = new Client(serverURI);
-		try (Scanner scanner = new Scanner(System.in)) {
+		try (Scanner scanner = new Scanner(scannerIS)) {
 			System.out.println("--------------------------------------------------------------------------------");
 			// We don't want to print a prompt symbol if a file was redirected and there's no line left to consume
-			if (!fileRed || scanner.hasNextLine()) System.out.print("> ");
+			if (!recvdInputFile || scanner.hasNextLine()) System.out.print("> ");
 
-			while (scanner.hasNextLine() || !fileRed) {
+			while (scanner.hasNextLine() || !recvdInputFile) {
 				String line = scanner.nextLine();
 				// Ignore blank input lines
 				if (line.isBlank()) continue;
 				// If a file was redirected, print the line consumed
-				if (fileRed) System.out.println(line);
+				if (recvdInputFile) System.out.println(line);
 				// Parse line (and close App if true)
 				if (parseAndExecCommand(line)) return;
 				// We don't want to print a prompt symbol if a file was redirected and there's no line left to consume
-				if (!fileRed || scanner.hasNextLine()) System.out.print("> ");
+				if (!recvdInputFile || scanner.hasNextLine()) System.out.print("> ");
 			}
 		}
 	}
+
 
 	// Returns true if the App should exit
 	private static boolean parseAndExecCommand(String line)

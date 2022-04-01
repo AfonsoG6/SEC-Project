@@ -13,10 +13,11 @@
     <name>${project.artifactId}</name>
 
     <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
+        <maven.compiler.source>${version.java}</maven.compiler.source>
+        <maven.compiler.target>${version.java}</maven.compiler.target>
 
         <mainclass>pt.tecnico.sec.bftb.client.AppMain</mainclass>
+        <inputfile></inputfile> <!-- default is empty -->
     </properties>
 
     <dependencies>
@@ -91,6 +92,7 @@
                     <arguments>
                         <argument>${svhost}</argument>
                         <argument>${svport}</argument>
+                        <argument>${inputfile}</argument>
                     </arguments>
                 </configuration>
             </plugin>

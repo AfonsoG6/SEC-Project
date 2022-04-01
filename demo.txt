@@ -1,0 +1,18 @@
+chuser afonso
+open
+check
+audit
+chuser manuel
+open
+check
+audit
+send afonso 10
+audit
+chuser afonso
+check
+recv
+check
+audit
+chuser manuel
+audit
+exit

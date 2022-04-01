@@ -82,10 +82,133 @@ To run the existing tests, first you must run the server:
 mvn exec:java -pl server
 ```
 
-Then, open a terminal and type:
+Then, open another terminal and type:
 
 ```shell
 mvn verify
+```
+
+### Running the demo
+
+To run the included demo, you must first run the server:
+
+```shell
+mvn exec:java -pl server
+```
+
+Then, open another terminal and type:
+
+```shell
+mvn exec:java -pl client -Dinputfile="demo.txt"
+```
+
+The following output should be displayed:
+
+```
+--------------------------------------------------------------------------------
+> chuser afonso
+User changed to 'afonso'
+--------------------------------------------------------------------------------
+> open
+Operation successful!
+--------------------------------------------------------------------------------
+> check
+Operation successful!
+Balance: 100
+Pending Transfers:
+
+--------------------------------------------------------------------------------
+> audit
+Operation successful!
+Transaction History:
+
+--------------------------------------------------------------------------------
+> chuser manuel
+User changed to 'manuel'
+--------------------------------------------------------------------------------
+> open
+Operation successful!
+--------------------------------------------------------------------------------
+> check
+Operation successful!
+Balance: 100
+Pending Transfers:
+
+--------------------------------------------------------------------------------
+> audit
+Operation successful!
+Transaction History:
+
+--------------------------------------------------------------------------------
+> send afonso 10
+Operation successful!
+--------------------------------------------------------------------------------
+> audit
+Operation successful!
+Transaction History:
+OUTGOING TRANSFER no.0: [Pending] $ 10 from MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6aODKvT7Alv5DhktdrgWIfsAQrwrTEPMkvggP7aYPiP2
+p0DSC06I0tn6YHtr0xbB/pPXoSJv785wID5e/7mU96R69UUnbLvc5fRWVcdMP23jrECqJxSmVMYfmD9ag2E9cVkbgwTnWwIpSKg0Ie1hqroDqMwqBFlKjWizgcp2qzTp4xZh
+fOoxd98OacuRDEArgaH6uNUKDIc8Ef5JWzB/o443ZzF5TCl2mWejHiRQwbtm54BIZx5FF50ml0iLtYGXXqW8D4MxSs2L9zWy1Ydow9ep85DB+vNLp7ujd8Ta4QhmnS6y1S8d
+JUoe1ZRETEzjMRsApHP+c5UAcpIGb84YlwIDAQAB to MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6aODKvT7Alv5DhktdrgWIfsAQrwrTEPMkvggP7aYPiP2
+p0DSC06I0tn6YHtr0xbB/pPXoSJv785wID5e/7mU96R69UUnbLvc5fRWVcdMP23jrECqJxSmVMYfmD9ag2E9cVkbgwTnWwIpSKg0Ie1hqroDqMwqBFlKjWizgcp2qzTp4xZh
+fOoxd98OacuRDEArgaH6uNUKDIc8Ef5JWzB/o443ZzF5TCl2mWejHiRQwbtm54BIZx5FF50ml0iLtYGXXqW8D4MxSs2L9zWy1Ydow9ep85DB+vNLp7ujd8Ta4QhmnS6y1S8d
+JUoe1ZRETEzjMRsApHP+c5UAcpIGb84YlwIDAQAB
+
+--------------------------------------------------------------------------------
+> chuser afonso
+User changed to 'afonso'
+--------------------------------------------------------------------------------
+> check
+Operation successful!
+Balance: 100
+Pending Transfers:
+INCOMING TRANSFER no.0: [Pending] $ 10 from MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6aODKvT7Alv5DhktdrgWIfsAQrwrTEPMkvggP7aYPiP2
+p0DSC06I0tn6YHtr0xbB/pPXoSJv785wID5e/7mU96R69UUnbLvc5fRWVcdMP23jrECqJxSmVMYfmD9ag2E9cVkbgwTnWwIpSKg0Ie1hqroDqMwqBFlKjWizgcp2qzTp4xZh
+fOoxd98OacuRDEArgaH6uNUKDIc8Ef5JWzB/o443ZzF5TCl2mWejHiRQwbtm54BIZx5FF50ml0iLtYGXXqW8D4MxSs2L9zWy1Ydow9ep85DB+vNLp7ujd8Ta4QhmnS6y1S8d
+JUoe1ZRETEzjMRsApHP+c5UAcpIGb84YlwIDAQAB to MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6aODKvT7Alv5DhktdrgWIfsAQrwrTEPMkvggP7aYPiP2
+p0DSC06I0tn6YHtr0xbB/pPXoSJv785wID5e/7mU96R69UUnbLvc5fRWVcdMP23jrECqJxSmVMYfmD9ag2E9cVkbgwTnWwIpSKg0Ie1hqroDqMwqBFlKjWizgcp2qzTp4xZh
+fOoxd98OacuRDEArgaH6uNUKDIc8Ef5JWzB/o443ZzF5TCl2mWejHiRQwbtm54BIZx5FF50ml0iLtYGXXqW8D4MxSs2L9zWy1Ydow9ep85DB+vNLp7ujd8Ta4QhmnS6y1S8d
+JUoe1ZRETEzjMRsApHP+c5UAcpIGb84YlwIDAQAB
+
+--------------------------------------------------------------------------------
+> recv
+Operation successful!
+--------------------------------------------------------------------------------
+> check
+Operation successful!
+Balance: 110
+Pending Transfers:
+
+--------------------------------------------------------------------------------
+> audit
+Operation successful!
+Transaction History:
+INCOMING TRANSFER no.0: [Approved] $ 10 from MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6aODKvT7Alv5DhktdrgWIfsAQrwrTEPMkvggP7aYPiP
+2p0DSC06I0tn6YHtr0xbB/pPXoSJv785wID5e/7mU96R69UUnbLvc5fRWVcdMP23jrECqJxSmVMYfmD9ag2E9cVkbgwTnWwIpSKg0Ie1hqroDqMwqBFlKjWizgcp2qzTp4xZ
+hfOoxd98OacuRDEArgaH6uNUKDIc8Ef5JWzB/o443ZzF5TCl2mWejHiRQwbtm54BIZx5FF50ml0iLtYGXXqW8D4MxSs2L9zWy1Ydow9ep85DB+vNLp7ujd8Ta4QhmnS6y1S8
+dJUoe1ZRETEzjMRsApHP+c5UAcpIGb84YlwIDAQAB to MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6aODKvT7Alv5DhktdrgWIfsAQrwrTEPMkvggP7aYPiP
+2p0DSC06I0tn6YHtr0xbB/pPXoSJv785wID5e/7mU96R69UUnbLvc5fRWVcdMP23jrECqJxSmVMYfmD9ag2E9cVkbgwTnWwIpSKg0Ie1hqroDqMwqBFlKjWizgcp2qzTp4xZ
+hfOoxd98OacuRDEArgaH6uNUKDIc8Ef5JWzB/o443ZzF5TCl2mWejHiRQwbtm54BIZx5FF50ml0iLtYGXXqW8D4MxSs2L9zWy1Ydow9ep85DB+vNLp7ujd8Ta4QhmnS6y1S8
+dJUoe1ZRETEzjMRsApHP+c5UAcpIGb84YlwIDAQAB
+
+--------------------------------------------------------------------------------
+> chuser manuel
+User changed to 'manuel'
+--------------------------------------------------------------------------------
+> audit
+Operation successful!
+Transaction History:
+OUTGOING TRANSFER no.0: [Approved] $ 10 from MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6aODKvT7Alv5DhktdrgWIfsAQrwrTEPMkvggP7aYPiP
+2p0DSC06I0tn6YHtr0xbB/pPXoSJv785wID5e/7mU96R69UUnbLvc5fRWVcdMP23jrECqJxSmVMYfmD9ag2E9cVkbgwTnWwIpSKg0Ie1hqroDqMwqBFlKjWizgcp2qzTp4xZ
+hfOoxd98OacuRDEArgaH6uNUKDIc8Ef5JWzB/o443ZzF5TCl2mWejHiRQwbtm54BIZx5FF50ml0iLtYGXXqW8D4MxSs2L9zWy1Ydow9ep85DB+vNLp7ujd8Ta4QhmnS6y1S8
+dJUoe1ZRETEzjMRsApHP+c5UAcpIGb84YlwIDAQAB to MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6aODKvT7Alv5DhktdrgWIfsAQrwrTEPMkvggP7aYPiP
+2p0DSC06I0tn6YHtr0xbB/pPXoSJv785wID5e/7mU96R69UUnbLvc5fRWVcdMP23jrECqJxSmVMYfmD9ag2E9cVkbgwTnWwIpSKg0Ie1hqroDqMwqBFlKjWizgcp2qzTp4xZ
+hfOoxd98OacuRDEArgaH6uNUKDIc8Ef5JWzB/o443ZzF5TCl2mWejHiRQwbtm54BIZx5FF50ml0iLtYGXXqW8D4MxSs2L9zWy1Ydow9ep85DB+vNLp7ujd8Ta4QhmnS6y1S8
+dJUoe1ZRETEzjMRsApHP+c5UAcpIGb84YlwIDAQAB
+
+--------------------------------------------------------------------------------
+> exit
+--------------------------------------------------------------------------------
 ```
 
 ## Built With
