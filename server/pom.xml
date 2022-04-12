@@ -17,6 +17,7 @@
         <maven.compiler.target>${version.java}</maven.compiler.target>
 
         <mainclass>pt.tecnico.sec.bftb.server.ServerMain</mainclass>
+        <n>0</n>
     </properties>
 
     <dependencies>
@@ -71,6 +72,8 @@
                     <mainClass>${mainclass}</mainClass>
                     <arguments>
                         <argument>${svport}</argument>
+                        <argument>${f}</argument>
+                        <argument>${n}</argument>
                     </arguments>
                 </configuration>
             </plugin>

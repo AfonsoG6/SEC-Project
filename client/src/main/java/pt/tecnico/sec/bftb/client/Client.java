@@ -18,6 +18,7 @@ import java.security.PublicKey;
 import java.security.cert.CertificateException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.Base64;
 
@@ -28,7 +29,8 @@ public class Client {
 	public static final String OPERATION_SUCCESSFUL = "Operation successful!";
 	public static final String OPERATION_FAILED = "Operation failed!";
 	private static final long DEADLINE_SEC = 10;    // Timeout deadline in seconds
-	private final ServerServiceGrpc.ServerServiceBlockingStub stub;
+	private final ServerServiceGrpc.ServerServiceBlockingStub stub; // remove later/replace with stubs
+	private final ConcurrentHashMap<String, ServerServiceGrpc.ServerServiceBlockingStub> stubs;
 	private final SignatureManager signatureManager;
 	private final PublicKey serverPublicKey;
 	private PublicKey userPublicKey;
@@ -37,10 +39,20 @@ public class Client {
 
 	private final List<GeneratedMessageV3> debugRequestHistory = new LinkedList<>();
 
-	public Client(String serverURI)
+	public Client(String svhost, int svport, int nTotal)
 			throws CertificateException, KeyPairLoadingFailedException, KeyPairGenerationFailedException {
+		// TODO ---- REMOVE LATER ---- START
+		String serverURI = String.format("%s:%d", svhost, svport);
 		ManagedChannel channel = ManagedChannelBuilder.forTarget(serverURI).usePlaintext().build();
 		this.stub = ServerServiceGrpc.newBlockingStub(channel);
+		// TODO ---- REMOVE LATER ---- END
+		this.stubs = new ConcurrentHashMap<>();
+		for (int i = 0; i < nTotal; i++) {
+			int rport = svport + i;
+			String replicaURI = String.format("%s:%d", svhost, rport);
+			channel = ManagedChannelBuilder.forTarget(replicaURI).usePlaintext().build();
+			this.stubs.put(replicaURI, ServerServiceGrpc.newBlockingStub(channel));
+		}
 		// Default user ID is "user", just for simplicity
 		Resources.init();
 		this.userPublicKey = Resources.getPublicKeyByUserId("user");

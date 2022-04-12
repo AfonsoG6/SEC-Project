@@ -23,10 +23,10 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 	private final SignatureManager signatureManager;
 	private final Server server;
 
-	public ServerServiceImpl() throws ServerInitializationFailedException {
+	public ServerServiceImpl(int replicaID) throws ServerInitializationFailedException {
 		try {
 			this.signatureManager = new SignatureManager();
-			this.server = new Server(0);
+			this.server = new Server(replicaID);
 		}
 		catch (PrivateKeyLoadingFailedException e) {
 			throw new ServerInitializationFailedException(e);

@@ -34,6 +34,7 @@
 
         <svhost>localhost</svhost>
         <svport>29292</svport>
+        <f>4</f>
     </properties>
 
     <modules>
