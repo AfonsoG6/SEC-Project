@@ -51,12 +51,12 @@ public class Server {
 	// Send Amount:
 
 	public void sendAmount(long timestamp, PublicKey sourceKey, PublicKey destinationKey, int amount)
-			throws AccountDoesNotExistException, AmountTooLowException, BalanceTooLowException, NoSuchAlgorithmException, SQLException, InvalidTimestampException {
+			throws AccountDoesNotExistException, AmountTooLowException, BalanceTooLowException, SQLException, InvalidTimestampException {
 		if (amount <= 0) throw new AmountTooLowException();
 		long currentTime = System.currentTimeMillis();
 		if (timestamp > currentTime || timestamp < currentTime - TIMESTAMP_TOLERANCE) throw new InvalidTimestampException();
-		if (db.checkAccountExists(sourceKey)) throw new AccountDoesNotExistException();
-		if (db.checkAccountExists(destinationKey)) throw new AccountDoesNotExistException();
+		if (!db.checkAccountExists(sourceKey)) throw new AccountDoesNotExistException();
+		if (!db.checkAccountExists(destinationKey)) throw new AccountDoesNotExistException();
 		if (amount >= db.readAccountBalance(sourceKey)) throw new BalanceTooLowException();
 
 		db.insertTransfer(timestamp, sourceKey, destinationKey, amount);
@@ -65,9 +65,9 @@ public class Server {
 	// Receive Amount:
 
 	public void receiveAmount(long timestamp, PublicKey sourceKey, PublicKey destinationKey)
-			throws AccountDoesNotExistException, BalanceTooLowException, TransferNotFoundException, NoSuchAlgorithmException, SQLException {
-		if (db.checkAccountExists(sourceKey)) throw new AccountDoesNotExistException();
-		if (db.checkAccountExists(destinationKey)) throw new AccountDoesNotExistException();
+			throws AccountDoesNotExistException, TransferNotFoundException, SQLException {
+		if (!db.checkAccountExists(sourceKey)) throw new AccountDoesNotExistException();
+		if (!db.checkAccountExists(destinationKey)) throw new AccountDoesNotExistException();
 
 		Transfer transfer = db.getTransfer(timestamp, sourceKey, destinationKey);
 

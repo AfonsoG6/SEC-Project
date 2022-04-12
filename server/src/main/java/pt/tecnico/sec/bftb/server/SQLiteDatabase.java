@@ -60,7 +60,7 @@ public class SQLiteDatabase {
 
 	public int readAccountBalance(PublicKey publicKey) throws SQLException {
 		try (Connection conn = getConnection()) {
-			String sql = "SELECT balance FROM account_balance WHERE pubkey = ?";
+			String sql = "SELECT balance FROM accounts WHERE pubkey = ?";
 			try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 				stmt.setString(1, Base64.getEncoder().encodeToString(publicKey.getEncoded()));
 				try (ResultSet rs = stmt.executeQuery()) {
@@ -77,7 +77,7 @@ public class SQLiteDatabase {
 
 	public void writeAccountBalance(PublicKey publicKey, int balance) throws SQLException {
 		try (Connection conn = getConnection()) {
-			String sql = "UPDATE account_balance SET balance = ? WHERE pubkey = ?";
+			String sql = "UPDATE accounts SET balance = ? WHERE pubkey = ?";
 			try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 				stmt.setInt(1, balance);
 				stmt.setString(2, Base64.getEncoder().encodeToString(publicKey.getEncoded()));
@@ -89,7 +89,7 @@ public class SQLiteDatabase {
 	public void insertTransfer(long timestamp, PublicKey senderPublicKey, PublicKey receiverPublicKey, int amount) throws
 			SQLException {
 		try (Connection conn = getConnection()) {
-			String sql = "INSERT INTO transfers(timestamp, sender_pubkey, receiver_pubkey, amount) VALUES (?, ?, ?, ?)";
+			String sql = "INSERT INTO transfers(timestamp, sender_pubkey, receiver_pubkey, amount, approved) VALUES (?, ?, ?, ?, FALSE)";
 			try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 				stmt.setLong(1, timestamp);
 				stmt.setString(2, Base64.getEncoder().encodeToString(senderPublicKey.getEncoded()));
@@ -114,7 +114,7 @@ public class SQLiteDatabase {
 
 	public List<Transfer> getAllTransfersOfAccount(PublicKey publicKey) throws SQLException {
 		try (Connection conn = getConnection()) {
-			String sql = "SELECT * FROM transfers WHERE sender_pubkey = ? OR receiver_pubkey = ? ORDER BY timestamp ASC";
+			String sql = "SELECT * FROM transfers WHERE (sender_pubkey = ? OR receiver_pubkey = ?) AND approved = TRUE ORDER BY timestamp ASC";
 			try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 				stmt.setString(1, Base64.getEncoder().encodeToString(publicKey.getEncoded()));
 				stmt.setString(2, Base64.getEncoder().encodeToString(publicKey.getEncoded()));
@@ -134,8 +134,9 @@ public class SQLiteDatabase {
 				stmt.setString(2, Base64.getEncoder().encodeToString(senderPublicKey.getEncoded()));
 				stmt.setString(3, Base64.getEncoder().encodeToString(receiverPublicKey.getEncoded()));
 				try (ResultSet rs = stmt.executeQuery()) {
-					if (!rs.first()) throw new TransferNotFoundException();
-					return TransferUtils.fromResultSet(rs).get(0);
+					List<Transfer> results = TransferUtils.fromResultSet(rs);
+					if (results.size() < 1) throw new TransferNotFoundException();
+					else return results.get(0);
 				}
 			}
 		}

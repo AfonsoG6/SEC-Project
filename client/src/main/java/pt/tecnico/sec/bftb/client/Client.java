@@ -6,8 +6,8 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
 import pt.tecnico.sec.bftb.client.exceptions.*;
-import pt.tecnico.sec.bftb.server.grpc.Server.*;
-import pt.tecnico.sec.bftb.server.grpc.ServerServiceGrpc;
+import pt.tecnico.sec.bftb.grpc.Server.*;
+import pt.tecnico.sec.bftb.grpc.ServerServiceGrpc;
 
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
@@ -33,6 +33,7 @@ public class Client {
 	private final PublicKey serverPublicKey;
 	private PublicKey userPublicKey;
 	private PrivateKey userPrivateKey;
+	private List<Transfer> lastCheckAccountTransfers = null;
 
 	private final List<GeneratedMessageV3> debugRequestHistory = new LinkedList<>();
 
@@ -168,7 +169,7 @@ public class Client {
 		try {
 			long nonceToClient = requestNonce();
 			PublicKey destinationPublicKey = Resources.getPublicKeyByUserId(destinationUserId);
-			sendAmount(amount, nonceToClient, destinationPublicKey);
+			sendAmount(destinationPublicKey, amount, nonceToClient);
 		}
 		catch (StatusRuntimeException e) {
 			System.out.println(SERVER_ERROR_PREFIX + e.getStatus().getDescription());
@@ -180,9 +181,10 @@ public class Client {
 		}
 	}
 
-	public void sendAmount(int amount, long nonceToClient, PublicKey destinationPublicKey)
+	public void sendAmount(PublicKey destinationPublicKey, int amount, long nonceToClient)
 			throws CypherFailedException, SignatureVerificationFailedException {
 		SendAmountRequest.Builder builder = SendAmountRequest.newBuilder();
+		builder.setTimestamp(System.currentTimeMillis());
 		builder.setSourceKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
 		builder.setDestinationKey(ByteString.copyFrom(destinationPublicKey.getEncoded()));
 		builder.setAmount(amount);
@@ -206,11 +208,11 @@ public class Client {
 		}
 	}
 
-	private String buildTransferListString(List<TransferFields> transferFieldsList)
+	private String buildTransferListString(List<Transfer> transferFieldsList)
 			throws InvalidKeySpecException, NoSuchAlgorithmException {
 		StringBuilder builder = new StringBuilder();
 		for (int i = 0; i < transferFieldsList.size(); i++) {
-			TransferFields transferFields = transferFieldsList.get(i);
+			Transfer transferFields = transferFieldsList.get(i);
 			byte[] sourceKeyBytes = transferFields.getSourceKey().toByteArray();
 			PublicKey sourceKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(sourceKeyBytes));
 			String sourceKeyString = Base64.getEncoder().encodeToString(sourceKey.getEncoded());
@@ -218,10 +220,10 @@ public class Client {
 			PublicKey destinationKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(destinationKeyBytes));
 			String destinationKeyString = Base64.getEncoder().encodeToString(destinationKey.getEncoded());
 			int amount = transferFields.getAmount();
-			boolean pending = transferFields.getPending();
+			boolean approved = transferFields.getApproved();
 			String direction = (userPublicKey.equals(sourceKey)) ? "OUTGOING" : "INCOMING";
-			String pendingStatus = pending ? "[Pending]" : "[Approved]";
-			builder.append("%s TRANSFER no.%d: %s $ %d from %s to %s%n".formatted(direction, i, pendingStatus, amount, sourceKeyString, destinationKeyString));
+			String approvedStatus = approved ? "[Approved]" : "[Pending]";
+			builder.append("%s TRANSFER no.%d: %s $ %d from %s to %s%n".formatted(direction, i, approvedStatus, amount, sourceKeyString, destinationKeyString));
 		}
 		return builder.toString();
 	}
@@ -267,6 +269,7 @@ public class Client {
 		}
 		else {
 			System.out.println(OPERATION_SUCCESSFUL);
+			lastCheckAccountTransfers = response.getContent().getPendingTransfersList();
 			return response;
 		}
 	}
@@ -279,16 +282,25 @@ public class Client {
 		catch (StatusRuntimeException e) {
 			System.out.println(SERVER_ERROR_PREFIX + e.getStatus().getDescription());
 		}
-		catch (CypherFailedException | NonceRequestFailedException | SignatureVerificationFailedException e) {
+		catch (CypherFailedException | NonceRequestFailedException | SignatureVerificationFailedException | InvalidTransferNumberException e) {
 			System.out.println(ERROR_PREFIX + e.getMessage());
 		}
 	}
 
 	public void receiveAmount(int transferNum, long nonceToClient)
+			throws CypherFailedException, SignatureVerificationFailedException, InvalidTransferNumberException {
+		if (lastCheckAccountTransfers == null) throw new InvalidTransferNumberException("No check account was performed, cannot select transfer");
+		if (transferNum < 0 || transferNum >= lastCheckAccountTransfers.size()) throw new InvalidTransferNumberException();
+		Transfer transfer = lastCheckAccountTransfers.get(transferNum);
+		receiveAmount(transfer.getTimestamp(), transfer.getSourceKey(), nonceToClient);
+	}
+
+	public void receiveAmount(long timestamp, ByteString sourceKey, long nonceToClient)
 			throws CypherFailedException, SignatureVerificationFailedException {
 		ReceiveAmountRequest.Builder builder = ReceiveAmountRequest.newBuilder();
-		builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
-		builder.setTransferNum(transferNum);
+		builder.setTimestamp(timestamp);
+		builder.setSourceKey(sourceKey);
+		builder.setDestinationKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
 		byte[] nonceToServer = signatureManager.generateCypheredNonce(this.serverPublicKey);
 		builder.setCypheredNonce(ByteString.copyFrom(nonceToServer));
 		ReceiveAmountRequest content = builder.build();

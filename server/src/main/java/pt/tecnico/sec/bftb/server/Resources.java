@@ -18,7 +18,7 @@ public class Resources {
 	private static final String KEYSTORE_PWD = "sec2122";
 
 	private static final String DATABASE_PATH = "database";
-	private static final String DATABASE_FILENAME = "database_%d.db";
+	private static final String DATABASE_FILENAME = "database_%d.sqlite";
 
 	private Resources() { /* empty */ }
 
@@ -27,7 +27,7 @@ public class Resources {
 	}
 
 	public static String getAbsoluteDatabasePath(int n) throws URISyntaxException {
-		return getAbsolutePathOfResource(Path.of(DATABASE_PATH, String.format(DATABASE_FILENAME, n)).toString());
+		return Path.of(getAbsolutePathOfResource(DATABASE_PATH), String.format(DATABASE_FILENAME, n)).toString();
 	}
 
 	private static String getAbsolutePathOfResource(String path) throws URISyntaxException {

@@ -15,8 +15,8 @@ public class TransferUtils {
 		List<Transfer> transfers = new ArrayList<>();
 		while (rs.next()) {
 			long timestamp = rs.getLong("timestamp");
-			byte[] sourceKeyBytes = Base64.getDecoder().decode(rs.getString("source_key"));
-			byte[] destinationKeyBytes = Base64.getDecoder().decode(rs.getString("destination_key"));
+			byte[] sourceKeyBytes = Base64.getDecoder().decode(rs.getString("sender_pubkey"));
+			byte[] destinationKeyBytes = Base64.getDecoder().decode(rs.getString("receiver_pubkey"));
 			int amount = rs.getInt("amount");
 			boolean approved = rs.getBoolean("approved");
 
