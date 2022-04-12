@@ -4,14 +4,15 @@ import com.google.protobuf.ByteString;
 import io.grpc.Context;
 import io.grpc.stub.StreamObserver;
 import pt.tecnico.sec.bftb.server.exceptions.*;
-import pt.tecnico.sec.bftb.server.grpc.Server.*;
-import pt.tecnico.sec.bftb.server.grpc.ServerServiceGrpc;
+import pt.tecnico.sec.bftb.grpc.Server.*;
+import pt.tecnico.sec.bftb.grpc.ServerServiceGrpc;
 
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
+import java.sql.SQLException;
 
 import static io.grpc.Status.*;
 
@@ -25,7 +26,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 	public ServerServiceImpl() throws ServerInitializationFailedException {
 		try {
 			this.signatureManager = new SignatureManager();
-			this.server = new Server();
+			this.server = new Server(0);
 		}
 		catch (PrivateKeyLoadingFailedException e) {
 			throw new ServerInitializationFailedException(e);
@@ -58,7 +59,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			responseObserver.onNext(signedResponse);
 			responseObserver.onCompleted();
 		}
-		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException | AccountSavingFailedException e) {
+		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException | SQLException e) {
 			e.printStackTrace();
 			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
 		}
@@ -76,6 +77,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 		}
 		try {
 			SendAmountRequest content = request.getContent();
+			long timestamp = content.getTimestamp();
 			byte[] sourceKeyBytes = content.getSourceKey().toByteArray();
 			PublicKey sourceKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(sourceKeyBytes));
 			byte[] destinationKeyBytes = content.getDestinationKey().toByteArray();
@@ -87,7 +89,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 				responseObserver.onError(INVALID_ARGUMENT.withDescription(INVALID_SIGNATURE).asRuntimeException());
 				return;
 			}
-			server.sendAmount(sourceKey, destinationKey, amount);
+			server.sendAmount(timestamp, sourceKey, destinationKey, amount);
 			// Build Signed Response
 			SignedSendAmountResponse.Builder signedBuilder = SignedSendAmountResponse.newBuilder();
 			byte[] serverSignature = signatureManager.sign(nonceToServer);
@@ -97,11 +99,11 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			responseObserver.onNext(signedResponse);
 			responseObserver.onCompleted();
 		}
-		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException | RestorePreviousStateFailedException e) {
+		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException | SQLException e) {
 			e.printStackTrace();
 			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
 		}
-		catch (AmountTooLowException | AccountDoesNotExistException | BalanceTooLowException e) {
+		catch (AmountTooLowException | AccountDoesNotExistException | BalanceTooLowException | InvalidTimestampException e) {
 			e.printStackTrace();
 			responseObserver.onError(INVALID_ARGUMENT.withDescription(e.getMessage()).asRuntimeException());
 		}
@@ -125,8 +127,8 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			}
 			// Build Response
 			CheckAccountResponse.Builder builder = CheckAccountResponse.newBuilder();
-			builder.setBalance(server.getBalance(publicKey));
-			builder.addAllPendingTransfers(server.getPendingTransfers(publicKey));
+			builder.setBalance(server.getAccountBalance(publicKey));
+			builder.addAllPendingTransfers(server.getPendingIncomingTransfers(publicKey));
 			CheckAccountResponse response = builder.build();
 			// Build Signed Response
 			SignedCheckAccountResponse.Builder signedBuilder = SignedCheckAccountResponse.newBuilder();
@@ -138,7 +140,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			responseObserver.onNext(signedResponse);
 			responseObserver.onCompleted();
 		}
-		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException e) {
+		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException | SQLException e) {
 			e.printStackTrace();
 			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
 		}
@@ -156,16 +158,18 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 		}
 		try {
 			ReceiveAmountRequest content = request.getContent();
-			byte[] publicKeyBytes = content.getPublicKey().toByteArray();
-			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBytes));
+			long timestamp = content.getTimestamp();
+			byte[] sourceKeyBytes = content.getSourceKey().toByteArray();
+			PublicKey sourceKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(sourceKeyBytes));
+			byte[] destinationKeyBytes = content.getDestinationKey().toByteArray();
+			PublicKey destinationKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(destinationKeyBytes));
 			long nonceToServer = signatureManager.decypherNonce(content.getCypheredNonce().toByteArray());
 			byte[] clientSignature = request.getSignature().toByteArray();
-			if (signatureManager.isSignatureInvalid(publicKey, clientSignature, content.toByteArray())) {
+			if (signatureManager.isSignatureInvalid(destinationKey, clientSignature, content.toByteArray())) {
 				responseObserver.onError(INVALID_ARGUMENT.withDescription(INVALID_SIGNATURE).asRuntimeException());
 				return;
 			}
-			int transferNum = content.getTransferNum();
-			server.receiveAmount(publicKey, transferNum);
+			server.receiveAmount(timestamp, sourceKey, destinationKey);
 			// Build Signed Response
 			SignedReceiveAmountResponse.Builder signedBuilder = SignedReceiveAmountResponse.newBuilder();
 			byte[] serverSignature = signatureManager.sign(nonceToServer);
@@ -175,11 +179,11 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			responseObserver.onNext(signedResponse);
 			responseObserver.onCompleted();
 		}
-		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException | RestorePreviousStateFailedException e) {
+		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException | SQLException e) {
 			e.printStackTrace();
 			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
 		}
-		catch (AccountDoesNotExistException | BalanceTooLowException | InvalidTransferNumberException e) {
+		catch (AccountDoesNotExistException | BalanceTooLowException | TransferNotFoundException e) {
 			e.printStackTrace();
 			responseObserver.onError(INVALID_ARGUMENT.withDescription(e.getMessage()).asRuntimeException());
 		}
@@ -215,7 +219,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			responseObserver.onNext(signedResponse);
 			responseObserver.onCompleted();
 		}
-		catch (AccountDoesNotExistException | CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException e) {
+		catch (AccountDoesNotExistException | CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException | SQLException e) {
 			e.printStackTrace();
 			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
 		}

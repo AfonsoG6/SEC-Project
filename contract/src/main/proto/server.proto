@@ -1,5 +1,5 @@
 syntax = "proto3";
-package pt.tecnico.sec.bftb.server.grpc;
+package pt.tecnico.sec.bftb.grpc;
 
 //--------------------------------------------Open Account Operation----------------------------------------------------
 
@@ -22,10 +22,11 @@ message SignedOpenAccountResponse {
 //--------------------------------------------Send Amount Operation-----------------------------------------------------
 
 message SendAmountRequest {
-  bytes sourceKey = 1;
-  bytes destinationKey = 2;
-  int32 amount = 3;
-  bytes cypheredNonce = 4; // Challenge created by the CLIENT
+  int64 timestamp = 1;
+  bytes sourceKey = 2;
+  bytes destinationKey = 3;
+  int32 amount = 4;
+  bytes cypheredNonce = 5; // Challenge created by the CLIENT
 }
 
 message SignedSendAmountRequest {
@@ -53,7 +54,7 @@ message SignedCheckAccountRequest {
 
 message CheckAccountResponse {
   int32 balance = 1;
-  repeated TransferFields pendingTransfers = 2;
+  repeated Transfer pendingTransfers = 2;
 }
 
 message SignedCheckAccountResponse {
@@ -61,19 +62,14 @@ message SignedCheckAccountResponse {
   bytes signature = 2; // Signature created by the SERVER
 }
 
-message TransferFields {
-	bytes sourceKey = 1;
-	bytes destinationKey = 2;
-	int32 amount = 3;
-	bool pending = 4;
-}
 
 //--------------------------------------------Receive Amount Operation--------------------------------------------------
 
 message ReceiveAmountRequest {
-  bytes publicKey = 1;
-  int32 transferNum = 2;
-  bytes cypheredNonce = 3; // Challenge created by the CLIENT
+  int64 timestamp = 1;
+  bytes sourceKey = 2;
+  bytes destinationKey = 3;
+  bytes cypheredNonce = 4; // Challenge created by the CLIENT
 }
 
 message SignedReceiveAmountRequest {
@@ -100,7 +96,7 @@ message SignedAuditRequest {
 }
 
 message AuditResponse {
-  repeated TransferFields history = 1;
+  repeated Transfer history = 1;
 }
 
 message SignedAuditResponse {
@@ -126,6 +122,16 @@ message PingRequest {
 
 message PingResponse {
   string output = 1;
+}
+
+//--------------------------------------------Data Structures-----------------------------------------------------------
+
+message Transfer {
+  int64 timestamp = 1;
+	bytes sourceKey = 2;
+	bytes destinationKey = 3;
+	int32 amount = 4;
+	bool approved = 5;
 }
 
 //--------------------------------------------Service-------------------------------------------------------------------
