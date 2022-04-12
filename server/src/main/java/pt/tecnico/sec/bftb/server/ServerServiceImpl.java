@@ -21,11 +21,13 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 	private static final String DEADLINE_EXCEEDED_DESC = "Timed out!";
 	private final SignatureManager signatureManager;
 	private final Server server;
+	private final int n;
 
-	public ServerServiceImpl() throws ServerInitializationFailedException {
+	public ServerServiceImpl(int n) throws ServerInitializationFailedException {
 		try {
 			this.signatureManager = new SignatureManager();
 			this.server = new Server();
+			this.n = n;
 		}
 		catch (PrivateKeyLoadingFailedException e) {
 			throw new ServerInitializationFailedException(e);

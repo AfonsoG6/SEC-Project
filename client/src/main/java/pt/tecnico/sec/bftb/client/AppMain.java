@@ -39,28 +39,36 @@ public class AppMain {
 		}
 
 		// Check number of arguments
-		if (args.length != 2 && args.length != 3) {
+		if (args.length != 3 && args.length != 4) {
 			System.out.println("Invalid number of arguments. Aborting!");
-			System.out.println("Usage: AppMain <serverHostname> <serverPort> [inputFile]");
+			System.out.println("Usage: AppMain <serverHostname> <serverPort> <faultsToTolerate> [inputFile]");
 			return;
 		}
 		// Checks if file was redirected
-		boolean hasInputFileArg = (args.length == 3 && args[2] != null && !args[2].isEmpty());
+		boolean hasInputFileArg = (args.length == 4 && args[3] != null && !args[3].isEmpty());
 
-		String serverURI = args[0] + ":" + args[1];
+		String svhost = args[0];
+		int svport = Integer.parseInt(args[1]);
+		int f = Integer.parseInt(args[2]);
+		if (f <= 0) {
+			System.out.println("Invalid number of faults to tolerate: f > 0");
+			return;
+		}
+		int nTotal = 3*f + 1;
+
 		if (hasInputFileArg) {
-			try (InputStream scannerIS = new FileInputStream(args[2])) {
-				scanInput(true, scannerIS, serverURI);
+			try (InputStream scannerIS = new FileInputStream(args[3])) {
+				scanInput(true, scannerIS, svhost, svport, nTotal);
 			}
 		}
 
 		boolean recvdInputFile = System.console() == null;
-		scanInput(recvdInputFile, System.in, serverURI);
+		scanInput(recvdInputFile, System.in, svhost, svport, nTotal);
 	}
 
-	private static void scanInput(boolean recvdInputFile, InputStream scannerIS, String serverURI)
+	private static void scanInput(boolean recvdInputFile, InputStream scannerIS, String svhost, int svport, int nTotal)
 			throws CertificateException, KeyPairLoadingFailedException, KeyPairGenerationFailedException {
-		client = new Client(serverURI);
+		client = new Client(svhost, svport, nTotal);
 		try (Scanner scanner = new Scanner(scannerIS)) {
 			System.out.println("--------------------------------------------------------------------------------");
 			// We don't want to print a prompt symbol if a file was redirected and there's no line left to consume

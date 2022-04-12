@@ -92,6 +92,7 @@
                     <arguments>
                         <argument>${svhost}</argument>
                         <argument>${svport}</argument>
+                        <argument>${f}</argument>
                         <argument>${inputfile}</argument>
                     </arguments>
                 </configuration>
