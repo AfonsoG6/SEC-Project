@@ -26,7 +26,7 @@ public class BaseIT {
 	@BeforeEach
 	public void eachSetup()
 			throws KeyPairLoadingFailedException, KeyPairGenerationFailedException, CertificateException {
-		client = new Client("localhost:29292");
+		client = new Client("localhost",29292, 10);
 	}
 
 	@AfterEach

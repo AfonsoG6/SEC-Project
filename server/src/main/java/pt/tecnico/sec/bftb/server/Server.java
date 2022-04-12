@@ -65,11 +65,12 @@ public class Server {
 	// Receive Amount:
 
 	public void receiveAmount(long timestamp, PublicKey sourceKey, PublicKey destinationKey)
-			throws AccountDoesNotExistException, TransferNotFoundException, SQLException {
+			throws AccountDoesNotExistException, TransferNotFoundException, SQLException, BalanceTooLowException {
 		if (!db.checkAccountExists(sourceKey)) throw new AccountDoesNotExistException();
 		if (!db.checkAccountExists(destinationKey)) throw new AccountDoesNotExistException();
 
 		Transfer transfer = db.getTransfer(timestamp, sourceKey, destinationKey);
+		if (transfer.getAmount() >= db.readAccountBalance(sourceKey)) throw new BalanceTooLowException();
 
 		// TRANSACTION
 		db.writeAccountBalance(sourceKey, db.readAccountBalance(sourceKey) - transfer.getAmount());
