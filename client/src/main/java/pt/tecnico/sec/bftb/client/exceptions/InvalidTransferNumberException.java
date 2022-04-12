@@ -1,4 +1,4 @@
-package pt.tecnico.sec.bftb.server.exceptions;
+package pt.tecnico.sec.bftb.client.exceptions;
 
 public class InvalidTransferNumberException extends Exception {
 	private static final String DEFAULT_MESSAGE = "Invalid transfer number";

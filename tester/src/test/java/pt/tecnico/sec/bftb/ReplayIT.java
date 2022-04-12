@@ -3,8 +3,8 @@ package pt.tecnico.sec.bftb;
 import com.google.protobuf.GeneratedMessageV3;
 import io.grpc.StatusRuntimeException;
 import org.junit.jupiter.api.Test;
-import pt.tecnico.sec.bftb.server.grpc.Server.SignedReceiveAmountRequest;
-import pt.tecnico.sec.bftb.server.grpc.Server.SignedSendAmountRequest;
+import pt.tecnico.sec.bftb.grpc.Server.SignedReceiveAmountRequest;
+import pt.tecnico.sec.bftb.grpc.Server.SignedSendAmountRequest;
 
 import java.util.List;
 
