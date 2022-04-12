@@ -19,6 +19,8 @@ public class Resources {
 	private static final String KEYSTORE_FILENAME = "keystore.jks";
 	private static final String KEYSTORE_PWD = "sec2122";
 
+	private static final String DATABASE_PATH = "database";
+	private static final String DATABASE_FILENAME = "database_%d.db";
 	private static final String STATE_PATH = "state";
 	private static final String ACCOUNTS_PATH = Path.of(STATE_PATH, "accounts").toString();
 	private static final String TRANSFERS_PATH = Path.of(STATE_PATH, "transfers").toString();
@@ -29,6 +31,10 @@ public class Resources {
 		createResourceDirectory(STATE_PATH);
 		createResourceDirectory(ACCOUNTS_PATH);
 		createResourceDirectory(TRANSFERS_PATH);
+	}
+
+	public static String getAbsoluteDatabasePath(int n) throws URISyntaxException {
+		return getAbsolutePathOfResource(Path.of(DATABASE_PATH, String.format(DATABASE_FILENAME, n));
 	}
 
 	private static String getAbsolutePathOfResource(String path) throws URISyntaxException {

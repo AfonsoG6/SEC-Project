@@ -111,16 +111,16 @@ public class Server {
 	}
 
 	public List<TransferFields> buildTransferFields(List<Long> transferIDs) {
-		List<TransferFields> transferFieldsList = new ArrayList<TransferFields>();
-		for (int i = 0; i < transferIDs.size(); i++) {
-			Transfer transfer = transfers.get(transferIDs.get(i));
+		List<TransferFields> transferFieldsList = new ArrayList<>();
+		for (Long transferID : transferIDs) {
+			Transfer transfer = transfers.get(transferID);
 			synchronized (transfer) {
 				TransferFields.Builder builder = TransferFields.newBuilder();
 				builder.setSourceKey(ByteString.copyFrom(transfer.getSourceKey().getEncoded()));
 				builder.setDestinationKey(ByteString.copyFrom(transfer.getSourceKey().getEncoded()));
 				builder.setAmount(transfer.getAmount());
 				builder.setPending(transfer.getPending());
-				TransferFields transferFields = builder.build();;
+				TransferFields transferFields = builder.build();
 				transferFieldsList.add(transferFields);
 			}
 		}

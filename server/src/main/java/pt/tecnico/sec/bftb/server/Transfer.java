@@ -1,9 +1,19 @@
 package pt.tecnico.sec.bftb.server;
 
+import pt.tecnico.sec.bftb.server.exceptions.ConnectionToDatabaseFailed;
+
 import java.io.Serial;
 import java.io.Serializable;
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 
 public class Transfer implements Serializable {
 	@Serial
@@ -21,6 +31,25 @@ public class Transfer implements Serializable {
 		this.destinationKey = destinationKey;
 		this.amount = amount;
 		this.pending = true;
+	}
+
+	public static List<Transfer> fromResultSet(ResultSet rs) throws ConnectionToDatabaseFailed {
+		try {
+			List<Transfer> transfers = new ArrayList<>();
+			while (rs.next()) {
+				long id = rs.getLong("id");
+				byte[] sourceKeyBytes = Base64.getDecoder().decode(rs.getString("source_key"));
+				PublicKey sourceKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(sourceKeyBytes));
+				byte[] destinationKeyBytes = Base64.getDecoder().decode(rs.getString("destination_key"));
+				PublicKey destinationKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(destinationKeyBytes));
+				int amount = rs.getInt("amount");
+				transfers.add(new Transfer(id, sourceKey, destinationKey, amount));
+			}
+		}
+		catch (SQLException | InvalidKeySpecException | NoSuchAlgorithmException e) {
+			// TODO: handle exception correctly
+			throw new ConnectionToDatabaseFailed(e);
+		}
 	}
 
 	public long getID() {
