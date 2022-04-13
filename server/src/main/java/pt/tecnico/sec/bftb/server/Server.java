@@ -75,7 +75,7 @@ public class Server {
 	}
 
 	public void receiveAmount(Transfer transfer, ByteString receiverSignature)
-			throws AccountDoesNotExistException, TransferNotFoundException, SQLException, BalanceTooLowException {
+			throws TransferNotFoundException, SQLException {
 		long timestamp = transfer.getTimestamp();
 		ByteString sourceKey = transfer.getSenderKey();
 		ByteString destinationKey = transfer.getReceiverKey();
@@ -89,11 +89,8 @@ public class Server {
 	}
 
 	private void verifyReceiveAmount(long timestamp, ByteString sourceKey, ByteString destinationKey, int amount)
-			throws SQLException, AccountDoesNotExistException, TransferNotFoundException, BalanceTooLowException {
-		if (!db.checkAccountExists(sourceKey)) throw new AccountDoesNotExistException();
-		if (!db.checkAccountExists(destinationKey)) throw new AccountDoesNotExistException();
+			throws SQLException, TransferNotFoundException {
 		if (!db.checkTransferExists(timestamp, sourceKey, destinationKey, amount)) throw new TransferNotFoundException();
-		if (amount >= db.readAccountBalance(sourceKey)) throw new BalanceTooLowException();
 	}
 
 	public List<Transfer> getApprovedTransfers(ByteString publicKey) throws AccountDoesNotExistException, SQLException {
