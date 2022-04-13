@@ -67,7 +67,8 @@ public class Client {
 			throws KeyPairLoadingFailedException, KeyPairGenerationFailedException {
 		signatureManager.setPrivateKey(Resources.getPrivateKeyByUserId(userId));
 	}
-/*
+
+	/*
 	public PingResponse debugSendRequest(PingRequest request) {
 		return stub.ping(request);
 	}
@@ -132,6 +133,7 @@ public class Client {
 			System.out.println(OPERATION_FAILED);
 		}
 	}
+
 	private ByteString getCypheredNonceToServer(long nonceToServer, int replicaID) throws CypherFailedException {
 		return ByteString.copyFrom(signatureManager.cypherNonce(this.serverPublicKeys.get(replicaID), nonceToServer));
 	}
@@ -147,7 +149,6 @@ public class Client {
 		return content;
 	}
 
-
 	public SignedOpenAccountResponse openAccount(ServerServiceBlockingStub stub, OpenAccountRequest content, long nonceToClient)
 			throws CypherFailedException {
 		byte[] signature = this.signatureManager.sign(nonceToClient, content.toByteArray());
@@ -161,8 +162,6 @@ public class Client {
 
 	public void openAccount() {
 		long nonceToServer = this.signatureManager.generateNonce(); // We use the same nonce for all server replicas
-		List<Long> noncesToClient = new ArrayList<>();
-		List<SignedOpenAccountResponse> responses = new ArrayList<>();
 		int numAcks = 0;
 		for (int replicaID = 0; replicaID < numberOfServerReplicas; replicaID++) {
 			ServerServiceBlockingStub stub = stubs.get(replicaID);
@@ -172,8 +171,6 @@ public class Client {
 				var response = openAccount(stub, request, nonceToClient);
 				byte[] serverSignature = response.getSignature().toByteArray();
 				if (this.signatureManager.isSignatureValid(this.serverPublicKeys.get(replicaID), serverSignature)) {
-					noncesToClient.add(nonceToClient);
-					responses.add(response);
 					numAcks++;
 				}
 			}
@@ -182,9 +179,6 @@ public class Client {
 			}
 		}
 		System.out.println("Number of ACKS: " + numAcks);
-		if (numAcks > numberOfServerReplicas/2) {
-			// TODO: send "commit" to all replicas, which includes the list of nonces and list of responses
-		}
 	}
 
 	public SendAmountRequest buildSendAmountRequest(long nonceToServer, int replicaID, PublicKey destinationPublicKey, long timestamp, int amount) throws CypherFailedException {
@@ -199,8 +193,9 @@ public class Client {
 		debugRequestHistory.add(content);
 		return content;
 	}
+
 	public SignedSendAmountResponse sendAmount(ServerServiceBlockingStub stub, SendAmountRequest content, long nonceToClient)
-			throws CypherFailedException, SignatureVerificationFailedException {
+			throws CypherFailedException {
 		byte[] signature = this.signatureManager.sign(nonceToClient, content.toByteArray());
 		SignedSendAmountRequest.Builder signedBuilder = SignedSendAmountRequest.newBuilder();
 		signedBuilder.setContent(content);
@@ -280,7 +275,7 @@ public class Client {
 	}
 
 	public SignedCheckAccountResponse checkAccount(ServerServiceBlockingStub stub, CheckAccountRequest content, long nonceToClient)
-			throws CypherFailedException, SignatureVerificationFailedException {
+			throws CypherFailedException {
 		byte[] signature = this.signatureManager.sign(nonceToClient, content.toByteArray());
 		SignedCheckAccountRequest.Builder signedBuilder = SignedCheckAccountRequest.newBuilder();
 		signedBuilder.setContent(content);
@@ -345,7 +340,7 @@ public class Client {
 	}
 
 	public SignedReceiveAmountResponse receiveAmount(ServerServiceBlockingStub stub, ReceiveAmountRequest content, long nonceToClient)
-			throws CypherFailedException, SignatureVerificationFailedException {
+			throws CypherFailedException {
 		byte[] signature = this.signatureManager.sign(nonceToClient, content.toByteArray());
 		SignedReceiveAmountRequest.Builder signedBuilder = SignedReceiveAmountRequest.newBuilder();
 		signedBuilder.setContent(content);
