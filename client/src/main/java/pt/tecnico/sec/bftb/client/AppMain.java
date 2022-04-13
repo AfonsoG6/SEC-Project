@@ -47,23 +47,22 @@ public class AppMain {
 		// Checks if file was redirected
 		boolean hasInputFileArg = (args.length == 4 && args[3] != null && !args[3].isEmpty());
 
-		String svhost = args[0];
-		int svport = Integer.parseInt(args[1]);
-		int f = Integer.parseInt(args[2]);
-		if (f <= 0) {
+		String serverHostname = args[0];
+		int serverPort = Integer.parseInt(args[1]);
+		int faultsToTolerate = Integer.parseInt(args[2]);
+		if (faultsToTolerate <= 0) {
 			System.out.println("Invalid number of faults to tolerate: f > 0");
 			return;
 		}
-		int nTotal = 3*f + 1;
 
 		if (hasInputFileArg) {
 			try (InputStream scannerIS = new FileInputStream(args[3])) {
-				scanInput(true, scannerIS, svhost, svport, nTotal);
+				scanInput(true, scannerIS, serverHostname, serverPort, faultsToTolerate);
 			}
 		}
 
 		boolean recvdInputFile = System.console() == null;
-		scanInput(recvdInputFile, System.in, svhost, svport, nTotal);
+		scanInput(recvdInputFile, System.in, serverHostname, serverPort, faultsToTolerate);
 	}
 
 	private static void scanInput(boolean recvdInputFile, InputStream scannerIS, String svhost, int svport, int nTotal)

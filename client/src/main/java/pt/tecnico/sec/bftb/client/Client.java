@@ -34,14 +34,15 @@ public class Client {
 	private PublicKey userPublicKey;
 	private PrivateKey userPrivateKey;
 	private List<Transfer> lastCheckAccountTransfers = null;
+	private final int faultsToTolerate;
 	private final int numberOfServerReplicas;
-
 	private final List<GeneratedMessageV3> debugRequestHistory = new LinkedList<>();
 
-	public Client(String serverHostname, int serverBasePort, int numberOfServerReplicas)
+	public Client(String serverHostname, int serverBasePort, int faultsToTolerate)
 			throws CertificateException, KeyPairLoadingFailedException, KeyPairGenerationFailedException {
 		this.stubs = new ConcurrentHashMap<>();
-		this.numberOfServerReplicas = numberOfServerReplicas;
+		this.faultsToTolerate = faultsToTolerate;
+		this.numberOfServerReplicas = (3 * faultsToTolerate) + 1;
 		for (int i = 0; i < numberOfServerReplicas; i++) {
 			int replicaPort = serverBasePort + i;
 			String replicaURI = String.format("%s:%d", serverHostname, replicaPort);
@@ -67,36 +68,6 @@ public class Client {
 			throws KeyPairLoadingFailedException, KeyPairGenerationFailedException {
 		signatureManager.setPrivateKey(Resources.getPrivateKeyByUserId(userId));
 	}
-
-	/*
-	public PingResponse debugSendRequest(PingRequest request) {
-		return stub.ping(request);
-	}
-
-	public GetNonceResponse debugSendRequest(GetNonceRequest request) {
-		return stub.getNonce(request);
-	}
-
-	public SignedOpenAccountResponse debugSendRequest(SignedOpenAccountRequest request) {
-		return stub.openAccount(request);
-	}
-
-	public SignedSendAmountResponse debugSendRequest(SignedSendAmountRequest request) {
-		return stub.sendAmount(request);
-	}
-
-	public SignedCheckAccountResponse debugSendRequest(SignedCheckAccountRequest request) {
-		return stub.checkAccount(request);
-	}
-
-	public SignedReceiveAmountResponse debugSendRequest(SignedReceiveAmountRequest request) {
-		return stub.receiveAmount(request);
-	}
-
-	public SignedAuditResponse debugSendRequest(SignedAuditRequest request) {
-		return stub.audit(request);
-	}
-	*/
 
 	public void changeUser(String userId) throws KeyPairLoadingFailedException, KeyPairGenerationFailedException {
 		userPrivateKey = Resources.getPrivateKeyByUserId(userId);
@@ -136,6 +107,10 @@ public class Client {
 
 	private ByteString getCypheredNonceToServer(long nonceToServer, int replicaID) throws CypherFailedException {
 		return ByteString.copyFrom(signatureManager.cypherNonce(this.serverPublicKeys.get(replicaID), nonceToServer));
+	}
+
+	private int numberOfNeededResponses() {
+		return (this.numberOfServerReplicas + this.faultsToTolerate) / 2;
 	}
 
 	// Open Account
@@ -178,7 +153,7 @@ public class Client {
 				handleException(e);
 			}
 		}
-		System.out.println("Number of ACKS: " + numAcks);
+		System.out.println("Number of ACKS: " + numAcks + "/" + this.numberOfServerReplicas);
 	}
 
 	public SendAmountRequest buildSendAmountRequest(long nonceToServer, int replicaID, PublicKey destinationPublicKey, long timestamp, int amount) throws CypherFailedException {
@@ -234,8 +209,8 @@ public class Client {
 				handleException(e);
 			}
 		}
-		System.out.println("Number of ACKS: " + numAcks);
-		if (numAcks > numberOfServerReplicas/2) {
+		System.out.println("Number of ACKS: " + numAcks + "/" + this.numberOfServerReplicas);
+		if (numAcks > numberOfNeededResponses()) {
 			// TODO: send "commit" to all replicas, which includes the list of nonces and list of responses
 		}
 	}
@@ -308,8 +283,8 @@ public class Client {
 				handleException(e);
 			}
 		}
-		System.out.println("Number of ACKS: " + numAcks);
-		if (numAcks > numberOfServerReplicas/2) {
+		System.out.println("Number of ACKS: " + numAcks + "/" + this.numberOfServerReplicas);
+		if (numAcks > numberOfNeededResponses()) {
 			// TODO: send "commit" to all replicas, which includes the list of nonces and list of responses
 			lastCheckAccountTransfers = responses.get(0).getContent().getPendingTransfersList();
 			System.out.println("Balance: " + responses.get(0).getContent().getBalance());
@@ -373,8 +348,8 @@ public class Client {
 				handleException(e);
 			}
 		}
-		System.out.println("Number of ACKS: " + numAcks);
-		if (numAcks > numberOfServerReplicas/2) {
+		System.out.println("Number of ACKS: " + numAcks + "/" + this.numberOfServerReplicas);
+		if (numAcks > numberOfNeededResponses()) {
 			// TODO: send "commit" to all replicas, which includes the list of nonces and list of responses
 		}
 	}
@@ -424,8 +399,8 @@ public class Client {
 				handleException(e);
 			}
 		}
-		System.out.println("Number of ACKS: " + numAcks);
-		if (numAcks > numberOfServerReplicas/2) {
+		System.out.println("Number of ACKS: " + numAcks + "/" + this.numberOfServerReplicas);
+		if (numAcks > numberOfNeededResponses()) {
 			// TODO: send "commit" to all replicas, which includes the list of nonces and list of responses
 			System.out.println("Transaction History: ");
 			System.out.println(buildTransferListString(responses.get(0).getContent().getHistoryList()));
