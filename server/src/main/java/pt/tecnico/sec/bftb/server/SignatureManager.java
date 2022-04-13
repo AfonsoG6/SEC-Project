@@ -23,9 +23,9 @@ public class SignatureManager {
 	private final Map<PublicKey, Long> currentNonces;
 
 
-	public SignatureManager() throws PrivateKeyLoadingFailedException {
+	public SignatureManager(int replicaID) throws PrivateKeyLoadingFailedException {
 		this.randomGenerator = new SecureRandom();
-		this.privateKey = Resources.getPrivateKey();
+		this.privateKey = Resources.getPrivateKey(replicaID);
 		this.currentNonces = new ConcurrentHashMap<>();
 	}
 

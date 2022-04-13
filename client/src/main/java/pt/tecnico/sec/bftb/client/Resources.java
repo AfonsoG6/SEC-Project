@@ -23,8 +23,8 @@ import java.security.cert.X509Certificate;
 import java.util.Date;
 
 public class Resources {
-	private static final String SERVER_CERT_PATH = "servercert";
-	private static final String SERVER_CERT_FILENAME = "cert.pem";
+	private static final String SERVER_CERT_PATH = "certificates";
+	private static final String SERVER_CERT_FILENAME = "cert_%d.pem";
 	private static final String KEYSTORE_FILENAME = "keystore.jks";
 	private static final String KEYSTORE_PWD = "sec2122";
 	private static final String CERTIFICATE_DN = "CN=BFTB-G35, O=IST, L=Lisbon, ST=Lisbon, C=PT";
@@ -131,8 +131,9 @@ public class Resources {
 		}
 	}
 
-	public static PublicKey getServerPublicKey() throws CertificateException {
-		InputStream certStream = Resources.class.getClassLoader().getResourceAsStream(Path.of(SERVER_CERT_PATH, SERVER_CERT_FILENAME).toString());
+	public static PublicKey getServerReplicaPublicKey(int replicaID) throws CertificateException {
+		String pathString = Path.of(SERVER_CERT_PATH, String.format(SERVER_CERT_FILENAME, replicaID)).toString();
+		InputStream certStream = Resources.class.getClassLoader().getResourceAsStream(pathString);
 		CertificateFactory f = CertificateFactory.getInstance("X.509");
 		X509Certificate certificate = (X509Certificate) f.generateCertificate(certStream);
 		return certificate.getPublicKey();

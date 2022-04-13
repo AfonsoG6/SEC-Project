@@ -53,13 +53,13 @@ public class SignatureManager {
 		}
 	}
 
-	public byte[] generateCypheredNonce(PublicKey peerPublicKey) throws CypherFailedException {
+	public long generateNonce() {
 		// Generate new nonce, store it and return it
 		this.currentNonce = randomGenerator.nextLong();
-		return cypherNonce(peerPublicKey, currentNonce);
+		return this.currentNonce;
 	}
 
-	public boolean isSignatureInvalid(PublicKey peerPublicKey, byte[] signature, byte[] content) throws
+	public boolean isSignatureValid(PublicKey peerPublicKey, byte[] signature, byte[] content) throws
 			SignatureVerificationFailedException {
 		try {
 			// Concatenate nonce and content
@@ -71,16 +71,16 @@ public class SignatureManager {
 			cipher.init(Cipher.DECRYPT_MODE, peerPublicKey);
 			byte[] receivedHash = cipher.doFinal(signature);
 			// Compare the received hash with the expected one
-			return !Arrays.equals(expectedHash, receivedHash);
+			return Arrays.equals(expectedHash, receivedHash);
 		}
 		catch (NoSuchAlgorithmException | InvalidKeyException | BadPaddingException | IllegalBlockSizeException | NoSuchPaddingException | BufferUnderflowException e) {
 			throw new SignatureVerificationFailedException(e);
 		}
 	}
 
-	public boolean isSignatureInvalid(PublicKey peerPublicKey, byte[] signature) throws
+	public boolean isSignatureValid(PublicKey peerPublicKey, byte[] signature) throws
 			SignatureVerificationFailedException {
-		return isSignatureInvalid(peerPublicKey, signature, new byte[0]);
+		return isSignatureValid(peerPublicKey, signature, new byte[0]);
 	}
 
 

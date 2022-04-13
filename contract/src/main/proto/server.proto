@@ -114,16 +114,6 @@ message GetNonceResponse {
   bytes cypheredNonce = 1; // Challenge created by the SERVER
 }
 
-//--------------------------------------------Ping Operation------------------------------------------------------------
-
-message PingRequest {
-  string input = 1;
-}
-
-message PingResponse {
-  string output = 1;
-}
-
 //--------------------------------------------Data Structures-----------------------------------------------------------
 
 message Transfer {
@@ -143,5 +133,4 @@ service ServerService {
   rpc receive_amount(SignedReceiveAmountRequest) returns (SignedReceiveAmountResponse);
   rpc audit(SignedAuditRequest) returns (SignedAuditResponse);
   rpc get_nonce(GetNonceRequest) returns (GetNonceResponse);
-  rpc ping(PingRequest) returns (PingResponse);
 }

@@ -34,14 +34,14 @@
 
         <svhost>localhost</svhost>
         <svport>29292</svport>
-        <f>4</f>
+        <f>1</f>
     </properties>
 
     <modules>
         <module>client</module>
         <module>contract</module>
         <module>server</module>
-        <module>tester</module>
+        <!--module>tester</module-->
     </modules>
 
     <build>

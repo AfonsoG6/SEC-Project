@@ -103,10 +103,6 @@ public class AppMain {
 				case "help":
 					System.out.printf(HELP_STRING);
 					break;
-				case "ping":
-					if (tokens.length == 2) client.ping(tokens[1]);
-					else System.out.println(ERROR_NUMBER_OF_ARGUMENTS);
-					break;
 				case "chuser":
 					if (tokens.length == 2) client.changeUser(tokens[1]);
 					else System.out.println(ERROR_NUMBER_OF_ARGUMENTS);

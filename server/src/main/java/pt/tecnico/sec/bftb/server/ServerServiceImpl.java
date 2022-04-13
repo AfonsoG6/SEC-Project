@@ -25,7 +25,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 
 	public ServerServiceImpl(int replicaID) throws ServerInitializationFailedException {
 		try {
-			this.signatureManager = new SignatureManager();
+			this.signatureManager = new SignatureManager(replicaID);
 			this.server = new Server(replicaID);
 		}
 		catch (PrivateKeyLoadingFailedException e) {
@@ -247,26 +247,4 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
 		}
 	}
-
-	@Override
-	public void ping(PingRequest request, StreamObserver<PingResponse> responseObserver) {
-		if (Context.current().isCancelled()) {
-			responseObserver.onError(DEADLINE_EXCEEDED.withDescription(DEADLINE_EXCEEDED_DESC).asRuntimeException());
-			return;
-		}
-		String input = request.getInput();
-		if (input.isBlank()) {
-			responseObserver.onError(INVALID_ARGUMENT.withDescription("Input cannot be empty!").asRuntimeException());
-			return;
-		}
-		String output = "Hello " + input + "!";
-		// Build response
-		PingResponse.Builder builder = PingResponse.newBuilder();
-		builder.setOutput(output);
-		PingResponse response = builder.build();
-		// Send Response
-		responseObserver.onNext(response);
-		responseObserver.onCompleted();
-	}
-
 }
