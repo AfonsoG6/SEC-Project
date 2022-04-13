@@ -83,6 +83,21 @@ public class SignatureManager {
 		return isSignatureValid(peerPublicKey, signature, new byte[0]);
 	}
 
+	public byte[] sign(byte[] content) throws CypherFailedException {
+		try {
+			// Concatenate nonce and content
+			byte[] request = ByteBuffer.allocate(content.length).put(content).array();
+			// Hash it with SHA-256
+			byte[] hash = MessageDigest.getInstance("SHA-256").digest(request);
+			// Encrypt CLIENT's signature
+			Cipher cipher = Cipher.getInstance(CIPHER_TRANSFORMATION);
+			cipher.init(Cipher.ENCRYPT_MODE, this.privateKey);
+			return cipher.doFinal(hash);
+		}
+		catch (IllegalBlockSizeException | BadPaddingException | InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException e) {
+			throw new CypherFailedException(e);
+		}
+	}
 
 	public byte[] sign(long nonce, byte[] content) throws CypherFailedException {
 		try {

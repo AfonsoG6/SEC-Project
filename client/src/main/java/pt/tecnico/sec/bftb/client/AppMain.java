@@ -1,5 +1,6 @@
 package pt.tecnico.sec.bftb.client;
 
+import io.grpc.StatusRuntimeException;
 import pt.tecnico.sec.bftb.client.exceptions.KeyPairGenerationFailedException;
 import pt.tecnico.sec.bftb.client.exceptions.KeyPairLoadingFailedException;
 
@@ -134,6 +135,9 @@ public class AppMain {
 		}
 		catch (NumberFormatException | PatternSyntaxException e) {
 			System.out.println(UNKNOWN_COMMAND);
+		}
+		catch (Exception e) {
+			Client.handleException(e);
 		}
 		// Print separator
 		System.out.println("--------------------------------------------------------------------------------");

@@ -60,6 +60,10 @@ public class Client {
 		}
 	}
 
+	private void printNumAcks(int numAcks) {
+		System.out.println("Number of ACKS: " + numAcks + "/" + this.numberOfServerReplicas);
+	}
+
 	public List<GeneratedMessageV3> getDebugRequestHistory() {
 		return debugRequestHistory;
 	}
@@ -94,7 +98,7 @@ public class Client {
 		}
 	}
 
-	public void handleException(Exception e) {
+	public static void handleException(Exception e) {
 		if (e instanceof StatusRuntimeException sre) {
 			System.out.println(SERVER_ERROR_PREFIX + sre.getStatus().getDescription());
 			System.out.println(OPERATION_FAILED);
@@ -111,6 +115,15 @@ public class Client {
 
 	private int numberOfNeededResponses() {
 		return (this.numberOfServerReplicas + this.faultsToTolerate) / 2;
+	}
+
+	public Transfer buildTransfer(long timestamp, PublicKey senderPublicKey, PublicKey receiverPublicKey, int amount) {
+		Transfer.Builder builder = Transfer.newBuilder();
+		builder.setTimestamp(timestamp);
+		builder.setSenderKey(ByteString.copyFrom(senderPublicKey.getEncoded()));
+		builder.setReceiverKey(ByteString.copyFrom(receiverPublicKey.getEncoded()));
+		builder.setAmount(amount);
+		return builder.build();
 	}
 
 	// Open Account
@@ -153,16 +166,14 @@ public class Client {
 				handleException(e);
 			}
 		}
-		System.out.println("Number of ACKS: " + numAcks + "/" + this.numberOfServerReplicas);
+		printNumAcks(numAcks);
 	}
 
-	public SendAmountRequest buildSendAmountRequest(long nonceToServer, int replicaID, PublicKey destinationPublicKey, long timestamp, int amount) throws CypherFailedException {
+	public SendAmountRequest buildSendAmountRequest(long nonceToServer, int replicaID, Transfer transfer, byte[] senderSignature) throws CypherFailedException {
 		ByteString cypheredNonceToServer = getCypheredNonceToServer(nonceToServer, replicaID);
 		SendAmountRequest.Builder builder = SendAmountRequest.newBuilder();
-		builder.setTimestamp(timestamp);
-		builder.setSourceKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
-		builder.setDestinationKey(ByteString.copyFrom(destinationPublicKey.getEncoded()));
-		builder.setAmount(amount);
+		builder.setTransfer(transfer);
+		builder.setSenderSignature(ByteString.copyFrom(senderSignature));
 		builder.setCypheredNonce(cypheredNonceToServer);
 		SendAmountRequest content = builder.build();
 		debugRequestHistory.add(content);
@@ -180,63 +191,49 @@ public class Client {
 		return stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).sendAmount(signedRequest);
 	}
 
-	public void sendAmount(String destinationUserId, int amount) {
+	public void sendAmount(String destinationUserId, int amount)
+			throws KeyPairLoadingFailedException, KeyPairGenerationFailedException, CypherFailedException {
 		long nonceToServer = this.signatureManager.generateNonce(); // We use the same nonce for all server replicas
-		long timestamp = System.currentTimeMillis();
-		List<Long> noncesToClient = new ArrayList<>();
-		List<SignedSendAmountResponse> responses = new ArrayList<>();
+		Transfer newTransfer = buildTransfer(System.currentTimeMillis(), this.userPublicKey, Resources.getPublicKeyByUserId(destinationUserId), amount);
+		byte[] senderSignature = this.signatureManager.sign(newTransfer.toByteArray());
 		int numAcks = 0;
 		for (int replicaID = 0; replicaID < numberOfServerReplicas; replicaID++) {
 			ServerServiceBlockingStub stub = stubs.get(replicaID);
 			try {
-				SendAmountRequest request = buildSendAmountRequest(
-						nonceToServer,
-						replicaID,
-						Resources.getPublicKeyByUserId(destinationUserId),
-						timestamp,
-						amount);
+				SendAmountRequest request = buildSendAmountRequest(nonceToServer, replicaID, newTransfer, senderSignature);
 				var nonceToClient = requestNonce(stub);
 				var response = sendAmount(stub, request, nonceToClient);
 				byte[] serverSignature = response.getSignature().toByteArray();
 				if (this.signatureManager.isSignatureValid(this.serverPublicKeys.get(replicaID), serverSignature)) {
-					noncesToClient.add(nonceToClient);
-					responses.add(response);
 					numAcks++;
 				}
 			}
-			catch (StatusRuntimeException | NonceRequestFailedException | CypherFailedException | SignatureVerificationFailedException |
-			       KeyPairLoadingFailedException | KeyPairGenerationFailedException e) {
+			catch (StatusRuntimeException | NonceRequestFailedException | CypherFailedException | SignatureVerificationFailedException e) {
 				handleException(e);
 			}
 		}
-		System.out.println("Number of ACKS: " + numAcks + "/" + this.numberOfServerReplicas);
+		printNumAcks(numAcks);
 		if (numAcks > numberOfNeededResponses()) {
 			// TODO: send "commit" to all replicas, which includes the list of nonces and list of responses
 		}
 	}
 
-	private String buildTransferListString(List<Transfer> transferFieldsList) {
-		try {
-			StringBuilder builder = new StringBuilder();
-			for (int i = 0; i < transferFieldsList.size(); i++) {
-				Transfer transferFields = transferFieldsList.get(i);
-				byte[] sourceKeyBytes = transferFields.getSourceKey().toByteArray();
-				PublicKey sourceKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(sourceKeyBytes));
-				String sourceKeyString = Base64.getEncoder().encodeToString(sourceKey.getEncoded());
-				byte[] destinationKeyBytes = transferFields.getDestinationKey().toByteArray();
-				PublicKey destinationKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(destinationKeyBytes));
-				String destinationKeyString = Base64.getEncoder().encodeToString(destinationKey.getEncoded());
-				int amount = transferFields.getAmount();
-				boolean approved = transferFields.getApproved();
-				String direction = (userPublicKey.equals(sourceKey)) ? "OUTGOING" : "INCOMING";
-				String approvedStatus = approved ? "[Approved]" : "[Pending]";
-				builder.append("%s TRANSFER no.%d: %s $ %d from %s to %s%n".formatted(direction, i, approvedStatus, amount, sourceKeyString, destinationKeyString));
-			}
-			return builder.toString();
+	private String buildTransferListString(List<Transfer> transferFieldsList)
+			throws NoSuchAlgorithmException, InvalidKeySpecException {
+		StringBuilder builder = new StringBuilder();
+		for (int i = 0; i < transferFieldsList.size(); i++) {
+			Transfer transferFields = transferFieldsList.get(i);
+			byte[] sourceKeyBytes = transferFields.getSenderKey().toByteArray();
+			PublicKey sourceKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(sourceKeyBytes));
+			String sourceKeyString = Base64.getEncoder().encodeToString(sourceKey.getEncoded());
+			byte[] destinationKeyBytes = transferFields.getReceiverKey().toByteArray();
+			PublicKey destinationKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(destinationKeyBytes));
+			String destinationKeyString = Base64.getEncoder().encodeToString(destinationKey.getEncoded());
+			int amount = transferFields.getAmount();
+			String direction = (userPublicKey.equals(sourceKey)) ? "OUTGOING" : "INCOMING";
+			builder.append("%s TRANSFER no.%d: %s $ %d from %s to %s%n".formatted(direction, i, amount, sourceKeyString, destinationKeyString));
 		}
-		catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
-			throw new RuntimeException(e);
-		}
+		return builder.toString();
 	}
 
 	public CheckAccountRequest buildCheckAccountRequest(long nonceToServer, int replicaID) throws CypherFailedException {
@@ -260,7 +257,7 @@ public class Client {
 		return stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).checkAccount(signedRequest);
 	}
 
-	public void checkAccount() {
+	public void checkAccount() throws NoSuchAlgorithmException, InvalidKeySpecException {
 		long nonceToServer = this.signatureManager.generateNonce(); // We use the same nonce for all server replicas
 		List<Long> noncesToClient = new ArrayList<>();
 		List<SignedCheckAccountResponse> responses = new ArrayList<>();
@@ -283,7 +280,7 @@ public class Client {
 				handleException(e);
 			}
 		}
-		System.out.println("Number of ACKS: " + numAcks + "/" + this.numberOfServerReplicas);
+		printNumAcks(numAcks);
 		if (numAcks > numberOfNeededResponses()) {
 			// TODO: send "commit" to all replicas, which includes the list of nonces and list of responses
 			lastCheckAccountTransfers = responses.get(0).getContent().getPendingTransfersList();
@@ -300,14 +297,12 @@ public class Client {
 		return lastCheckAccountTransfers.get(transferNum);
 	}
 
-	public ReceiveAmountRequest buildReceiveAmountRequest(long nonceToServer, int replicaID, int transferNum)
+	public ReceiveAmountRequest buildReceiveAmountRequest(long nonceToServer, int replicaID, Transfer transfer, byte[] receiverSignature)
 			throws InvalidTransferNumberException, CypherFailedException {
 		ByteString cypheredNonceToServer = getCypheredNonceToServer(nonceToServer, replicaID);
-		Transfer transfer = getTransferFromNumber(transferNum);
 		ReceiveAmountRequest.Builder builder = ReceiveAmountRequest.newBuilder();
-		builder.setTimestamp(transfer.getTimestamp());
-		builder.setSourceKey(transfer.getSourceKey());
-		builder.setDestinationKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
+		builder.setTransfer(transfer);
+		builder.setReceiverSignature(ByteString.copyFrom(receiverSignature));
 		builder.setCypheredNonce(cypheredNonceToServer);
 		ReceiveAmountRequest content = builder.build();
 		debugRequestHistory.add(content);
@@ -325,21 +320,19 @@ public class Client {
 		return stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).receiveAmount(signedRequest);
 	}
 
-	public void receiveAmount(int transferNum) {
+	public void receiveAmount(int transferNum) throws InvalidTransferNumberException, CypherFailedException {
 		long nonceToServer = this.signatureManager.generateNonce(); // We use the same nonce for all server replicas
-		List<Long> noncesToClient = new ArrayList<>();
-		List<SignedReceiveAmountResponse> responses = new ArrayList<>();
+		Transfer targetTransfer = getTransferFromNumber(transferNum);
+		byte[] receiverSignature = this.signatureManager.sign(targetTransfer.toByteArray());
 		int numAcks = 0;
 		for (int replicaID = 0; replicaID < numberOfServerReplicas; replicaID++) {
 			ServerServiceBlockingStub stub = stubs.get(replicaID);
 			try {
-				ReceiveAmountRequest request = buildReceiveAmountRequest(nonceToServer, replicaID, transferNum);
+				ReceiveAmountRequest request = buildReceiveAmountRequest(nonceToServer, replicaID, targetTransfer, receiverSignature);
 				var nonceToClient = requestNonce(stub);
 				var response = receiveAmount(stub, request, nonceToClient);
 				byte[] serverSignature = response.getSignature().toByteArray();
 				if (this.signatureManager.isSignatureValid(this.serverPublicKeys.get(replicaID), serverSignature)) {
-					noncesToClient.add(nonceToClient);
-					responses.add(response);
 					numAcks++;
 				}
 			}
@@ -348,7 +341,7 @@ public class Client {
 				handleException(e);
 			}
 		}
-		System.out.println("Number of ACKS: " + numAcks + "/" + this.numberOfServerReplicas);
+		printNumAcks(numAcks);
 		if (numAcks > numberOfNeededResponses()) {
 			// TODO: send "commit" to all replicas, which includes the list of nonces and list of responses
 		}
@@ -376,7 +369,7 @@ public class Client {
 		return stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).audit(signedRequest);
 	}
 
-	public void audit() {
+	public void audit() throws NoSuchAlgorithmException, InvalidKeySpecException {
 		long nonceToServer = this.signatureManager.generateNonce(); // We use the same nonce for all server replicas
 		List<Long> noncesToClient = new ArrayList<>();
 		List<SignedAuditResponse> responses = new ArrayList<>();
@@ -399,7 +392,7 @@ public class Client {
 				handleException(e);
 			}
 		}
-		System.out.println("Number of ACKS: " + numAcks + "/" + this.numberOfServerReplicas);
+		printNumAcks(numAcks);
 		if (numAcks > numberOfNeededResponses()) {
 			// TODO: send "commit" to all replicas, which includes the list of nonces and list of responses
 			System.out.println("Transaction History: ");

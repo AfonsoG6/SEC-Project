@@ -1,10 +1,9 @@
 package pt.tecnico.sec.bftb.server;
 
+import com.google.protobuf.ByteString;
 import pt.tecnico.sec.bftb.server.exceptions.*;
 import pt.tecnico.sec.bftb.grpc.Server.Transfer;
 
-import java.security.NoSuchAlgorithmException;
-import java.security.PublicKey;
 import java.sql.SQLException;
 import java.util.List;
 
@@ -26,7 +25,7 @@ public class Server {
 		}
 	}
 
-	public void openAccount(PublicKey publicKey)
+	public void openAccount(ByteString publicKey)
 			throws AccountAlreadyExistsException, SQLException {
 		if (db.checkAccountExists(publicKey)) throw new AccountAlreadyExistsException();
 
@@ -35,14 +34,14 @@ public class Server {
 
 	// Check Account (part 1):
 
-	public int getAccountBalance(PublicKey publicKey) throws AccountDoesNotExistException, SQLException {
+	public int getAccountBalance(ByteString publicKey) throws AccountDoesNotExistException, SQLException {
 		if (!db.checkAccountExists(publicKey)) throw new AccountDoesNotExistException();
 		return db.readAccountBalance(publicKey);
 	}
 
 	// Check Account (part 2):
 
-	public List<Transfer> getPendingIncomingTransfers(PublicKey publicKey)
+	public List<Transfer> getPendingIncomingTransfers(ByteString publicKey)
 			throws AccountDoesNotExistException, SQLException {
 		if (!db.checkAccountExists(publicKey)) throw new AccountDoesNotExistException();
 		return db.getIncomingPendingTransfersOfAccount(publicKey);
@@ -50,37 +49,54 @@ public class Server {
 
 	// Send Amount:
 
-	public void sendAmount(long timestamp, PublicKey sourceKey, PublicKey destinationKey, int amount)
+	public void sendAmount(Transfer transfer, ByteString senderSignature)
 			throws AccountDoesNotExistException, AmountTooLowException, BalanceTooLowException, SQLException, InvalidTimestampException {
+		long timestamp = transfer.getTimestamp();
+		int amount = transfer.getAmount();
+		ByteString sourceKey = transfer.getSenderKey();
+		ByteString destinationKey = transfer.getReceiverKey();
+
+		verifySendAmount(timestamp, amount, sourceKey, destinationKey);
+
+		// TRANSACTION
+		db.writeAccountBalance(sourceKey, db.readAccountBalance(sourceKey) - transfer.getAmount());
+		db.insertTransfer(timestamp, sourceKey, destinationKey, amount, senderSignature);
+	}
+
+	private void verifySendAmount(long timestamp, int amount, ByteString sourceKey, ByteString destinationKey)
+			throws AmountTooLowException, InvalidTimestampException, SQLException, AccountDoesNotExistException,
+			BalanceTooLowException {
 		if (amount <= 0) throw new AmountTooLowException();
 		long currentTime = System.currentTimeMillis();
 		if (timestamp > currentTime || timestamp < currentTime - TIMESTAMP_TOLERANCE) throw new InvalidTimestampException();
 		if (!db.checkAccountExists(sourceKey)) throw new AccountDoesNotExistException();
 		if (!db.checkAccountExists(destinationKey)) throw new AccountDoesNotExistException();
 		if (amount >= db.readAccountBalance(sourceKey)) throw new BalanceTooLowException();
-
-		db.insertTransfer(timestamp, sourceKey, destinationKey, amount);
 	}
 
-	// Receive Amount:
-
-	public void receiveAmount(long timestamp, PublicKey sourceKey, PublicKey destinationKey)
+	public void receiveAmount(Transfer transfer, ByteString receiverSignature)
 			throws AccountDoesNotExistException, TransferNotFoundException, SQLException, BalanceTooLowException {
-		if (!db.checkAccountExists(sourceKey)) throw new AccountDoesNotExistException();
-		if (!db.checkAccountExists(destinationKey)) throw new AccountDoesNotExistException();
+		long timestamp = transfer.getTimestamp();
+		ByteString sourceKey = transfer.getSenderKey();
+		ByteString destinationKey = transfer.getReceiverKey();
+		int amount = transfer.getAmount();
 
-		Transfer transfer = db.getTransfer(timestamp, sourceKey, destinationKey);
-		if (transfer.getAmount() >= db.readAccountBalance(sourceKey)) throw new BalanceTooLowException();
+		verifyReceiveAmount(timestamp, sourceKey, destinationKey, amount);
 
 		// TRANSACTION
-		db.writeAccountBalance(sourceKey, db.readAccountBalance(sourceKey) - transfer.getAmount());
 		db.writeAccountBalance(destinationKey, db.readAccountBalance(destinationKey) + transfer.getAmount());
-		db.updateTransferToApproved(timestamp, sourceKey, destinationKey);
+		db.updateTransferToApproved(timestamp, sourceKey, destinationKey, receiverSignature);
 	}
 
-	// Audit:
+	private void verifyReceiveAmount(long timestamp, ByteString sourceKey, ByteString destinationKey, int amount)
+			throws SQLException, AccountDoesNotExistException, TransferNotFoundException, BalanceTooLowException {
+		if (!db.checkAccountExists(sourceKey)) throw new AccountDoesNotExistException();
+		if (!db.checkAccountExists(destinationKey)) throw new AccountDoesNotExistException();
+		if (!db.checkTransferExists(timestamp, sourceKey, destinationKey, amount)) throw new TransferNotFoundException();
+		if (amount >= db.readAccountBalance(sourceKey)) throw new BalanceTooLowException();
+	}
 
-	public List<Transfer> getApprovedTransfers(PublicKey publicKey) throws AccountDoesNotExistException, SQLException {
+	public List<Transfer> getApprovedTransfers(ByteString publicKey) throws AccountDoesNotExistException, SQLException {
 		if (!db.checkAccountExists(publicKey)) throw new AccountDoesNotExistException();
 		return db.getAllTransfersOfAccount(publicKey);
 	}

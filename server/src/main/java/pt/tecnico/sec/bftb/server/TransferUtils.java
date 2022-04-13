@@ -18,24 +18,21 @@ public class TransferUtils {
 			byte[] sourceKeyBytes = Base64.getDecoder().decode(rs.getString("sender_pubkey"));
 			byte[] destinationKeyBytes = Base64.getDecoder().decode(rs.getString("receiver_pubkey"));
 			int amount = rs.getInt("amount");
-			boolean approved = rs.getBoolean("approved");
 
 			Transfer.Builder builder = Transfer.newBuilder();
 			builder.setTimestamp(timestamp);
-			builder.setSourceKey(ByteString.copyFrom(sourceKeyBytes));
-			builder.setDestinationKey(ByteString.copyFrom(destinationKeyBytes));
+			builder.setSenderKey(ByteString.copyFrom(sourceKeyBytes));
+			builder.setReceiverKey(ByteString.copyFrom(destinationKeyBytes));
 			builder.setAmount(amount);
-			builder.setApproved(approved);
 			transfers.add(builder.build());
 		}
 		return transfers;
 	}
 
 	public static String toString(Transfer transfer) {
-		return ((!transfer.getApproved()) ? "[Pending]" : "[Approved]")
-				+ " $" + transfer.getAmount() + " from "
-				+ Base64.getEncoder().encodeToString(transfer.getSourceKey().toByteArray())
+		return "$" + transfer.getAmount() + " from "
+				+ Base64.getEncoder().encodeToString(transfer.getSenderKey().toByteArray())
 				+ " to "
-				+ Base64.getEncoder().encodeToString(transfer.getDestinationKey().toByteArray());
+				+ Base64.getEncoder().encodeToString(transfer.getReceiverKey().toByteArray());
 	}
 }

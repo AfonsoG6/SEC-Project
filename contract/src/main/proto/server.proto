@@ -22,11 +22,9 @@ message SignedOpenAccountResponse {
 //--------------------------------------------Send Amount Operation-----------------------------------------------------
 
 message SendAmountRequest {
-  int64 timestamp = 1;
-  bytes sourceKey = 2;
-  bytes destinationKey = 3;
-  int32 amount = 4;
-  bytes cypheredNonce = 5; // Challenge created by the CLIENT
+  Transfer transfer = 1;
+  bytes senderSignature = 2;
+  bytes cypheredNonce = 3; // Challenge created by the CLIENT
 }
 
 message SignedSendAmountRequest {
@@ -66,10 +64,9 @@ message SignedCheckAccountResponse {
 //--------------------------------------------Receive Amount Operation--------------------------------------------------
 
 message ReceiveAmountRequest {
-  int64 timestamp = 1;
-  bytes sourceKey = 2;
-  bytes destinationKey = 3;
-  bytes cypheredNonce = 4; // Challenge created by the CLIENT
+  Transfer transfer = 1;
+  bytes receiverSignature = 2;
+  bytes cypheredNonce = 3; // Challenge created by the CLIENT
 }
 
 message SignedReceiveAmountRequest {
@@ -118,10 +115,9 @@ message GetNonceResponse {
 
 message Transfer {
   int64 timestamp = 1;
-	bytes sourceKey = 2;
-	bytes destinationKey = 3;
+	bytes senderKey = 2;
+	bytes receiverKey = 3;
 	int32 amount = 4;
-	bool approved = 5;
 }
 
 //--------------------------------------------Service-------------------------------------------------------------------
