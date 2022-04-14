@@ -1,5 +1,6 @@
 package pt.tecnico.sec.bftb.server;
 
+import pt.tecnico.sec.bftb.grpc.Server.*;
 import pt.tecnico.sec.bftb.server.exceptions.CypherFailedException;
 import pt.tecnico.sec.bftb.server.exceptions.PrivateKeyLoadingFailedException;
 import pt.tecnico.sec.bftb.server.exceptions.SignatureVerificationFailedException;
@@ -62,7 +63,7 @@ public class SignatureManager {
 		return cypherNonce(peerPublicKey, nonce);
 	}
 
-	public boolean isSignatureInvalid(PublicKey peerPublicKey, byte[] signature, byte[] content) throws
+	public boolean isNonceSignatureInvalid(PublicKey peerPublicKey, byte[] signature, byte[] content) throws
 			SignatureVerificationFailedException {
 		try {
 			if (!currentNonces.containsKey(peerPublicKey))
@@ -89,9 +90,36 @@ public class SignatureManager {
 		}
 	}
 
-	public boolean isSignatureInvalid(PublicKey peerPublicKey, byte[] signature) throws
+	public boolean isNonceSignatureInvalid(PublicKey peerPublicKey, byte[] signature) throws
 			SignatureVerificationFailedException {
-		return isSignatureInvalid(peerPublicKey, signature, new byte[0]);
+		return isNonceSignatureInvalid(peerPublicKey, signature, new byte[0]);
+	}
+
+	public boolean isSignatureValid(PublicKey peerPublicKey, byte[] signature, byte[] content) throws
+			SignatureVerificationFailedException {
+		try {
+			// Hash it with SHA-256
+			byte[] expectedHash = MessageDigest.getInstance("SHA-256").digest(content);
+			// Decrypt SERVER's signature
+			Cipher cipher = Cipher.getInstance(CIPHER_TRANSFORMATION);
+			cipher.init(Cipher.DECRYPT_MODE, peerPublicKey);
+			byte[] receivedHash = cipher.doFinal(signature);
+			// Compare the received hash with the expected one
+			return Arrays.equals(expectedHash, receivedHash);
+		}
+		catch (NoSuchAlgorithmException | InvalidKeyException | BadPaddingException | IllegalBlockSizeException | NoSuchPaddingException | BufferUnderflowException e) {
+			throw new SignatureVerificationFailedException(e);
+		}
+	}
+
+	public boolean isBalanceSignatureValid(PublicKey peerPublicKey, byte[] signature, Balance balance) throws
+			SignatureVerificationFailedException {
+		return isSignatureValid(peerPublicKey, signature, balance.toByteArray());
+	}
+
+	public boolean isTransferSignatureValid(PublicKey peerPublicKey, byte[] signature, Transfer transfer) throws
+			SignatureVerificationFailedException {
+		return isSignatureValid(peerPublicKey, signature, transfer.toByteArray());
 	}
 
 	public byte[] sign(long nonce, byte[] content) throws CypherFailedException {

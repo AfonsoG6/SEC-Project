@@ -2,6 +2,7 @@ package pt.tecnico.sec.bftb.client;
 
 import pt.tecnico.sec.bftb.client.exceptions.CypherFailedException;
 import pt.tecnico.sec.bftb.client.exceptions.SignatureVerificationFailedException;
+import pt.tecnico.sec.bftb.grpc.Server.*;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -17,16 +18,19 @@ public class SignatureManager {
 	public static final String CIPHER_TRANSFORMATION = "RSA/ECB/PKCS1Padding";
 	private final Random randomGenerator;
 	private PrivateKey privateKey;
+	private PublicKey publicKey;
 	private long currentNonce;
 
-	public SignatureManager(PrivateKey privateKey) {
+	public SignatureManager(PrivateKey privateKey, PublicKey publicKey) {
 		this.randomGenerator = new SecureRandom();
 		this.privateKey = privateKey;
+		this.publicKey = publicKey;
 		this.currentNonce = 0;
 	}
 
-	public void setPrivateKey(PrivateKey privateKey) {
+	public void setKeyPair(PrivateKey privateKey, PublicKey publicKey) {
 		this.privateKey = privateKey;
+		this.publicKey = publicKey;
 	}
 
 	public byte[] cypherNonce(PublicKey peerPublicKey, long nonce) throws CypherFailedException {
@@ -59,7 +63,7 @@ public class SignatureManager {
 		return this.currentNonce;
 	}
 
-	public boolean isSignatureValid(PublicKey peerPublicKey, byte[] signature, byte[] content) throws
+	public boolean isNonceSignatureValid(PublicKey peerPublicKey, byte[] signature, byte[] content) throws
 			SignatureVerificationFailedException {
 		try {
 			// Concatenate nonce and content
@@ -78,17 +82,55 @@ public class SignatureManager {
 		}
 	}
 
-	public boolean isSignatureValid(PublicKey peerPublicKey, byte[] signature) throws
+	public boolean isNonceSignatureValid(PublicKey peerPublicKey, byte[] signature) throws
 			SignatureVerificationFailedException {
-		return isSignatureValid(peerPublicKey, signature, new byte[0]);
+		return isNonceSignatureValid(peerPublicKey, signature, new byte[0]);
+	}
+
+	public boolean isBalanceSignatureValid(byte[] signature, Balance balance) throws
+			SignatureVerificationFailedException {
+		return isSignatureValid(this.publicKey, signature, balance.toByteArray());
+	}
+
+	public boolean isTransferSignatureValid(PublicKey peerPublicKey, byte[] signature, Transfer transfer) throws
+			SignatureVerificationFailedException {
+		return isSignatureValid(peerPublicKey, signature, transfer.toByteArray());
+	}
+
+	public boolean isTransferSignatureValid(byte[] signature, Transfer transfer) throws
+			SignatureVerificationFailedException {
+		return isSignatureValid(this.publicKey, signature, transfer.toByteArray());
+	}
+
+	public boolean isSignatureValid(PublicKey peerPublicKey, byte[] signature, byte[] content) throws
+			SignatureVerificationFailedException {
+		try {
+			// Hash it with SHA-256
+			byte[] expectedHash = MessageDigest.getInstance("SHA-256").digest(content);
+			// Decrypt SERVER's signature
+			Cipher cipher = Cipher.getInstance(CIPHER_TRANSFORMATION);
+			cipher.init(Cipher.DECRYPT_MODE, peerPublicKey);
+			byte[] receivedHash = cipher.doFinal(signature);
+			// Compare the received hash with the expected one
+			return Arrays.equals(expectedHash, receivedHash);
+		}
+		catch (NoSuchAlgorithmException | InvalidKeyException | BadPaddingException | IllegalBlockSizeException | NoSuchPaddingException | BufferUnderflowException e) {
+			throw new SignatureVerificationFailedException(e);
+		}
+	}
+
+	public byte[] signBalance(Balance balance) throws CypherFailedException {
+		return sign(balance.toByteArray());
+	}
+
+	public byte[] signTransfer(Transfer transfer) throws CypherFailedException {
+		return sign(transfer.toByteArray());
 	}
 
 	public byte[] sign(byte[] content) throws CypherFailedException {
 		try {
-			// Concatenate nonce and content
-			byte[] request = ByteBuffer.allocate(content.length).put(content).array();
 			// Hash it with SHA-256
-			byte[] hash = MessageDigest.getInstance("SHA-256").digest(request);
+			byte[] hash = MessageDigest.getInstance("SHA-256").digest(content);
 			// Encrypt CLIENT's signature
 			Cipher cipher = Cipher.getInstance(CIPHER_TRANSFORMATION);
 			cipher.init(Cipher.ENCRYPT_MODE, this.privateKey);

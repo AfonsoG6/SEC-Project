@@ -17,7 +17,7 @@
         <maven.compiler.target>${version.java}</maven.compiler.target>
 
         <mainclass>pt.tecnico.sec.bftb.server.ServerMain</mainclass>
-        <n>2</n>
+        <n>3</n>
     </properties>
 
     <dependencies>

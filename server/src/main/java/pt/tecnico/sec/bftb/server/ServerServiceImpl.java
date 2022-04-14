@@ -20,23 +20,20 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 
 	public static final String INVALID_SIGNATURE = "Invalid signature";
 	private static final String DEADLINE_EXCEEDED_DESC = "Timed out!";
-	private final SignatureManager signatureManager;
 	private final Server server;
 
 	public ServerServiceImpl(int replicaID) throws ServerInitializationFailedException {
-		try {
-			this.signatureManager = new SignatureManager(replicaID);
-			this.server = new Server(replicaID);
-		}
-		catch (PrivateKeyLoadingFailedException e) {
-			throw new ServerInitializationFailedException(e);
-		}
+		this.server = new Server(replicaID);
+	}
+
+	SignatureManager getServerSignatureManager() {
+		return server.getSignatureManager();
 	}
 
 	private boolean checkRequestSignature(ByteString publicKeyBS, ByteString signature, byte[] content, StreamObserver<?> responseObserver)
 			throws NoSuchAlgorithmException, InvalidKeySpecException, SignatureVerificationFailedException {
 		PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBS.toByteArray()));
-		if (signatureManager.isSignatureInvalid(publicKey, signature.toByteArray(), content)) {
+		if (getServerSignatureManager().isNonceSignatureInvalid(publicKey, signature.toByteArray(), content)) {
 			responseObserver.onError(INVALID_ARGUMENT.withDescription(INVALID_SIGNATURE).asRuntimeException());
 			return false;
 		}
@@ -53,14 +50,16 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			// Parse request & Check its Validity
 			OpenAccountRequest content = request.getContent();
 			ByteString publicKeyBS = content.getPublicKey();
+			Balance initialBalance = content.getInitialBalance();
+			ByteString balanceSignature = content.getBalanceSignature();
 			byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
 			if (!checkRequestSignature(publicKeyBS, request.getSignature(), content.toByteArray(), responseObserver)) return;
 			// Execute the request
-			server.openAccount(publicKeyBS);
+			server.openAccount(publicKeyBS, initialBalance, balanceSignature);
 			// Build Signed Response
 			SignedOpenAccountResponse.Builder signedBuilder = SignedOpenAccountResponse.newBuilder();
-			long nonceToServer = signatureManager.decypherNonce(cypheredNonceToServer);
-			byte[] serverSignature = signatureManager.sign(nonceToServer);
+			long nonceToServer = getServerSignatureManager().decypherNonce(cypheredNonceToServer);
+			byte[] serverSignature = getServerSignatureManager().sign(nonceToServer);
 			signedBuilder.setSignature(ByteString.copyFrom(serverSignature));
 			SignedOpenAccountResponse signedResponse = signedBuilder.build();
 			// Send Response
@@ -74,6 +73,10 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 		catch (AccountAlreadyExistsException e) {
 			e.printStackTrace();
 			responseObserver.onError(ALREADY_EXISTS.withDescription(e.getMessage()).asRuntimeException());
+		}
+		catch (InvalidNewBalanceException e) {
+			e.printStackTrace();
+			responseObserver.onError(INVALID_ARGUMENT.withDescription(e.getMessage()).asRuntimeException());
 		}
 	}
 
@@ -94,8 +97,8 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			server.sendAmount(newTransfer, senderSignature);
 			// Build Signed Response
 			SignedSendAmountResponse.Builder signedBuilder = SignedSendAmountResponse.newBuilder();
-			long nonceToServer = signatureManager.decypherNonce(cypheredNonceToServer);
-			byte[] serverSignature = signatureManager.sign(nonceToServer);
+			long nonceToServer = getServerSignatureManager().decypherNonce(cypheredNonceToServer);
+			byte[] serverSignature = getServerSignatureManager().sign(nonceToServer);
 			signedBuilder.setSignature(ByteString.copyFrom(serverSignature));
 			SignedSendAmountResponse signedResponse = signedBuilder.build();
 			// Send Response
@@ -106,7 +109,8 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			e.printStackTrace();
 			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
 		}
-		catch (AmountTooLowException | AccountDoesNotExistException | BalanceTooLowException | InvalidTimestampException e) {
+		catch (AmountTooLowException | AccountDoesNotExistException | BalanceTooLowException |
+		       InvalidTimestampException | InvalidTransferSignatureException | InvalidNewBalanceException e) {
 			e.printStackTrace();
 			responseObserver.onError(INVALID_ARGUMENT.withDescription(e.getMessage()).asRuntimeException());
 		}
@@ -132,8 +136,8 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			// Build Signed Response
 			SignedCheckAccountResponse.Builder signedBuilder = SignedCheckAccountResponse.newBuilder();
 			signedBuilder.setContent(response);
-			long nonceToServer = signatureManager.decypherNonce(cypheredNonceToServer);
-			byte[] serverSignature = signatureManager.sign(nonceToServer, signedBuilder.getContent().toByteArray());
+			long nonceToServer = getServerSignatureManager().decypherNonce(cypheredNonceToServer);
+			byte[] serverSignature = getServerSignatureManager().sign(nonceToServer, signedBuilder.getContent().toByteArray());
 			signedBuilder.setSignature(ByteString.copyFrom(serverSignature));
 			SignedCheckAccountResponse signedResponse = signedBuilder.build();
 			// Send Response
@@ -161,14 +165,16 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			ReceiveAmountRequest content = request.getContent();
 			Transfer transfer = content.getTransfer();
 			ByteString receiverSignature = content.getReceiverSignature();
+			Balance newBalance = content.getNewBalance();
+			ByteString balanceSignature = content.getBalanceSignature();
 			byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
 			if (!checkRequestSignature(transfer.getReceiverKey(), request.getSignature(), content.toByteArray(), responseObserver)) return;
 			// Execute Request
 			server.receiveAmount(transfer, receiverSignature);
 			// Build Signed Response
 			SignedReceiveAmountResponse.Builder signedBuilder = SignedReceiveAmountResponse.newBuilder();
-			long nonceToServer = signatureManager.decypherNonce(cypheredNonceToServer);
-			byte[] serverSignature = signatureManager.sign(nonceToServer);
+			long nonceToServer = getServerSignatureManager().decypherNonce(cypheredNonceToServer);
+			byte[] serverSignature = getServerSignatureManager().sign(nonceToServer);
 			signedBuilder.setSignature(ByteString.copyFrom(serverSignature));
 			SignedReceiveAmountResponse signedResponse = signedBuilder.build();
 			// Send Response
@@ -179,7 +185,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			e.printStackTrace();
 			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
 		}
-		catch (AccountDoesNotExistException | BalanceTooLowException | TransferNotFoundException e) {
+		catch (TransferNotFoundException | InvalidNewBalanceException | InvalidTransferSignatureException e) {
 			e.printStackTrace();
 			responseObserver.onError(INVALID_ARGUMENT.withDescription(e.getMessage()).asRuntimeException());
 		}
@@ -204,8 +210,8 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			// Build Signed Response
 			SignedAuditResponse.Builder signedBuilder = SignedAuditResponse.newBuilder();
 			signedBuilder.setContent(response);
-			long nonceToServer = signatureManager.decypherNonce(cypheredNonceToServer);
-			byte[] serverSignature = signatureManager.sign(nonceToServer, signedBuilder.getContent().toByteArray());
+			long nonceToServer = getServerSignatureManager().decypherNonce(cypheredNonceToServer);
+			byte[] serverSignature = getServerSignatureManager().sign(nonceToServer, signedBuilder.getContent().toByteArray());
 			signedBuilder.setSignature(ByteString.copyFrom(serverSignature));
 			SignedAuditResponse signedResponse = signedBuilder.build();
 			// Send Response
@@ -229,7 +235,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			ByteString publicKeyBS = request.getPublicKey();
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBS.toByteArray()));
 			// Execute the request
-			byte[] nonce = signatureManager.generateCypheredNonce(publicKey);
+			byte[] nonce = getServerSignatureManager().generateCypheredNonce(publicKey);
 			// Build Response
 			GetNonceResponse.Builder builder = GetNonceResponse.newBuilder();
 			builder.setCypheredNonce(ByteString.copyFrom(nonce));

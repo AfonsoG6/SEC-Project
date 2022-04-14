@@ -24,7 +24,9 @@ public class SQLiteDatabase {
 			try (Statement stmt = conn.createStatement()) {
 				stmt.execute("CREATE TABLE IF NOT EXISTS accounts(" +
 									"pubkey TEXT PRIMARY KEY, " +
-									"balance INTEGER NOT NULL)");
+									"balance INTEGER NOT NULL, " +
+									"wts INTEGER NOT NULL," +
+									"sign TEXT NOT NULL)");
 				stmt.execute("CREATE TABLE IF NOT EXISTS transfers(" +
 									"timestamp INTEGER NOT NULL, " +
 									"sender_pubkey TEXT NOT NULL, " +
