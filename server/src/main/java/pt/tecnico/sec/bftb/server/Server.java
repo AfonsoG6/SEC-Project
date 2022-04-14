@@ -90,7 +90,7 @@ public class Server {
 
 	private void verifyReceiveAmount(long timestamp, ByteString sourceKey, ByteString destinationKey, int amount)
 			throws SQLException, TransferNotFoundException {
-		if (!db.checkTransferExists(timestamp, sourceKey, destinationKey, amount)) throw new TransferNotFoundException();
+		if (!db.checkPendingTransferExists(timestamp, sourceKey, destinationKey, amount)) throw new TransferNotFoundException();
 	}
 
 	public List<Transfer> getApprovedTransfers(ByteString publicKey) throws AccountDoesNotExistException, SQLException {

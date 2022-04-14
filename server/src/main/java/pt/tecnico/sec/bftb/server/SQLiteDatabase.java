@@ -7,7 +7,6 @@ import pt.tecnico.sec.bftb.server.exceptions.TransferNotFoundException;
 import pt.tecnico.sec.bftb.grpc.Server.Transfer;
 
 import java.net.URISyntaxException;
-import java.security.PublicKey;
 import java.sql.*;
 import java.util.Base64;
 import java.util.List;
@@ -186,14 +185,15 @@ public class SQLiteDatabase {
 		}
 	}
 
-	public boolean checkTransferExists(long timestamp, ByteString sourceKey, ByteString destinationKey, int amount)
+	public boolean checkPendingTransferExists(long timestamp, ByteString sourceKey, ByteString destinationKey, int amount)
 			throws SQLException {
 		try (Connection conn = getConnection()) {
 			String sql = "SELECT * FROM transfers " +
 					"WHERE timestamp = ? " +
 					"AND sender_pubkey = ? " +
 					"AND receiver_pubkey = ? " +
-					"AND amount = ?";
+					"AND amount = ? " +
+					"AND receiver_sign IS NULL";
 			try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 				stmt.setLong(1, timestamp);
 				stmt.setString(2, Base64.getEncoder().encodeToString(sourceKey.toByteArray()));
