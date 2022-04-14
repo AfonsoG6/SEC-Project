@@ -3,6 +3,7 @@ package pt.tecnico.sec.bftb.server;
 import com.google.protobuf.ByteString;
 import pt.tecnico.sec.bftb.server.exceptions.*;
 import pt.tecnico.sec.bftb.grpc.Server.Transfer;
+import pt.tecnico.sec.bftb.grpc.Server.Balance;
 
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
@@ -44,6 +45,11 @@ public class Server {
 		db.insertAccount(publicKey, INITIAL_BALANCE);
 	}
 
+	public BalanceRecord readBalanceForWrite(ByteString publicKey) throws AccountDoesNotExistException, SQLException {
+		if (!db.checkAccountExists(publicKey)) throw new AccountDoesNotExistException();
+		return db.readAccountBalanceRecord(publicKey);
+	}
+
 	// Check Account (part 1):
 
 	public int getAccountBalance(ByteString publicKey) throws AccountDoesNotExistException, SQLException {
@@ -61,8 +67,11 @@ public class Server {
 
 	// Send Amount:
 
-	public void sendAmount(Transfer transfer, ByteString senderSignature)
-			throws AccountDoesNotExistException, AmountTooLowException, BalanceTooLowException, SQLException, InvalidTimestampException {
+	public void sendAmount(Transfer transfer, ByteString senderSignature, Balance newBalance, ByteString balanceSignature)
+			throws AccountDoesNotExistException, AmountTooLowException, BalanceTooLowException, SQLException,
+			InvalidTimestampException, InvalidKeySpecException,
+			SignatureVerificationFailedException, InvalidTransferSignatureException, InvalidNewBalanceException,
+			NoSuchAlgorithmException {
 		long timestamp = transfer.getTimestamp();
 		int amount = transfer.getAmount();
 		ByteString senderKeyBS = transfer.getSenderKey();

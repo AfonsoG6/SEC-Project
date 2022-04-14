@@ -92,6 +92,24 @@ public class SQLiteDatabase {
 		}
 	}
 
+	public BalanceRecord readAccountBalanceRecord(ByteString publicKey) throws SQLException {
+		try (Connection conn = getConnection()) {
+			String sql =    "SELECT * FROM accounts " +
+							"WHERE pubkey = ?";
+			try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+				stmt.setString(1, Base64.getEncoder().encodeToString(publicKey.toByteArray()));
+				try (ResultSet rs = stmt.executeQuery()) {
+					if (rs.next()) {
+						return new BalanceRecord(rs);
+					}
+					else {
+						throw new SQLException();
+					}
+				}
+			}
+		}
+	}
+
 	public void writeAccountBalance(ByteString publicKey, int balance) throws SQLException {
 		try (Connection conn = getConnection()) {
 			String sql =    "UPDATE accounts SET balance = ? " +

@@ -81,6 +81,46 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 	}
 
 	@Override
+	public void readBalanceForWrite(SignedReadBalanceForWriteRequest request, StreamObserver<SignedReadBalanceForWriteResponse> responseObserver) {
+		if (Context.current().isCancelled()) {
+			responseObserver.onError(DEADLINE_EXCEEDED.withDescription(DEADLINE_EXCEEDED_DESC).asRuntimeException());
+			return;
+		}
+		try {
+			// Parse request & Check its Validity
+			ReadBalanceForWriteRequest content = request.getContent();
+			ByteString publicKeyBS = content.getPublicKey();
+			byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
+			if (!checkRequestSignature(publicKeyBS, request.getSignature(), content.toByteArray(), responseObserver)) return;
+			// Execute the request
+			BalanceRecord balanceRecord = server.readBalanceForWrite(publicKeyBS);
+			// Build Response
+			ReadBalanceForWriteResponse.Builder builder = ReadBalanceForWriteResponse.newBuilder();
+			builder.setBalance(balanceRecord.getBalance());
+			builder.setBalanceSignature(ByteString.copyFrom(balanceRecord.getSignature()));
+			ReadBalanceForWriteResponse response = builder.build();
+			// Build Signed Response
+			SignedReadBalanceForWriteResponse.Builder signedBuilder = SignedReadBalanceForWriteResponse.newBuilder();
+			signedBuilder.setContent(response);
+			long nonceToServer = getServerSignatureManager().decypherNonce(cypheredNonceToServer);
+			byte[] serverSignature = getServerSignatureManager().sign(nonceToServer);
+			signedBuilder.setSignature(ByteString.copyFrom(serverSignature));
+			SignedReadBalanceForWriteResponse signedResponse = signedBuilder.build();
+			// Send Response
+			responseObserver.onNext(signedResponse);
+			responseObserver.onCompleted();
+		}
+		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException | SQLException e) {
+			e.printStackTrace();
+			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
+		}
+		catch (AccountDoesNotExistException e) {
+			e.printStackTrace();
+			responseObserver.onError(ALREADY_EXISTS.withDescription(e.getMessage()).asRuntimeException());
+		}
+	}
+
+	@Override
 	public void sendAmount(SignedSendAmountRequest request, StreamObserver<SignedSendAmountResponse> responseObserver) {
 		if (Context.current().isCancelled()) {
 			responseObserver.onError(DEADLINE_EXCEEDED.withDescription(DEADLINE_EXCEEDED_DESC).asRuntimeException());
@@ -91,10 +131,12 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			SendAmountRequest content = request.getContent();
 			Transfer newTransfer = content.getTransfer();
 			ByteString senderSignature = content.getSenderSignature();
+			Balance newBalance = content.getNewBalance();
+			ByteString balanceSignature = content.getBalanceSignature();
 			byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
 			if (!checkRequestSignature(newTransfer.getSenderKey(), request.getSignature(), content.toByteArray(), responseObserver)) return;
 			// Execute Request
-			server.sendAmount(newTransfer, senderSignature);
+			server.sendAmount(newTransfer, senderSignature, newBalance, balanceSignature);
 			// Build Signed Response
 			SignedSendAmountResponse.Builder signedBuilder = SignedSendAmountResponse.newBuilder();
 			long nonceToServer = getServerSignatureManager().decypherNonce(cypheredNonceToServer);
@@ -170,7 +212,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
 			if (!checkRequestSignature(transfer.getReceiverKey(), request.getSignature(), content.toByteArray(), responseObserver)) return;
 			// Execute Request
-			server.receiveAmount(transfer, receiverSignature);
+			server.receiveAmount(transfer, receiverSignature, newBalance, balanceSignature);
 			// Build Signed Response
 			SignedReceiveAmountResponse.Builder signedBuilder = SignedReceiveAmountResponse.newBuilder();
 			long nonceToServer = getServerSignatureManager().decypherNonce(cypheredNonceToServer);

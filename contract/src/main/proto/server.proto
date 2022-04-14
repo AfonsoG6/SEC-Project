@@ -21,6 +21,28 @@ message SignedOpenAccountResponse {
   bytes signature = 1; // Signature created by the SERVER
 }
 
+//-----------------------------------------Read Balance For Write Operation---------------------------------------------
+
+message ReadBalanceForWriteRequest {
+  bytes publicKey = 1;
+  bytes cypheredNonce = 2; // Challenge created by the CLIENT
+}
+
+message SignedReadBalanceForWriteRequest {
+  ReadBalanceForWriteRequest content = 1;
+  bytes signature = 2; // Signature created by the CLIENT
+}
+
+message ReadBalanceForWriteResponse {
+  Balance balance = 1;
+  bytes balanceSignature = 2;
+}
+
+message SignedReadBalanceForWriteResponse {
+  ReadBalanceForWriteResponse content = 1;
+  bytes signature = 2; // Signature created by the SERVER
+}
+
 //--------------------------------------------Send Amount Operation-----------------------------------------------------
 
 message SendAmountRequest {
@@ -63,7 +85,6 @@ message SignedCheckAccountResponse {
   CheckAccountResponse content = 1;
   bytes signature = 2; // Signature created by the SERVER
 }
-
 
 //--------------------------------------------Receive Amount Operation--------------------------------------------------
 

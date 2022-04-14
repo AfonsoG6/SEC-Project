@@ -416,6 +416,7 @@ public class Client {
 	public void receiveAmount(int transferNum)
 			throws InvalidTransferNumberException, CypherFailedException, NotEnoughValidResponsesException {
 		long nonceToServer = this.signatureManager.generateNonce(); // We use the same nonce for all server replicas
+
 		Transfer targetTransfer = getTransferFromNumber(transferNum);
 		byte[] receiverSignature = this.signatureManager.sign(targetTransfer.toByteArray());
 		Balance newBalance = getIncrementedBalance(targetTransfer.getAmount());
