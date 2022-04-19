@@ -127,14 +127,24 @@ public class Client {
 		return builder.build();
 	}
 
+	public ListSizes buildListSizes(int pendingSize, int approvedSize, int wts) {
+		ListSizes.Builder builder = ListSizes.newBuilder();
+		builder.setPendingSize(pendingSize);
+		builder.setApprovedSize(approvedSize);
+		builder.setWts(wts);
+		return builder.build();
+	}
+
 	// Open Account
-	public OpenAccountRequest buildOpenAccountRequest(long nonceToServer, int replicaID, Balance initialBalance, byte[] balanceSignature) throws CypherFailedException {
+	public OpenAccountRequest buildOpenAccountRequest(long nonceToServer, int replicaID, Balance initialBalance, byte[] balanceSignature, ListSizes listSizes, byte[] sizesSignature) throws CypherFailedException {
 		ByteString cypheredNonceToServer = getCypheredNonceToServer(nonceToServer, replicaID);
 		OpenAccountRequest.Builder builder = OpenAccountRequest.newBuilder();
 		builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
 		builder.setCypheredNonce(cypheredNonceToServer);
 		builder.setInitialBalance(initialBalance);
 		builder.setBalanceSignature(ByteString.copyFrom(balanceSignature));
+		builder.setListSizes(listSizes);
+		builder.setSizesSignature(ByteString.copyFrom(sizesSignature));
 		OpenAccountRequest content = builder.build();
 		debugRequestHistory.add(content);
 		return content;
@@ -155,11 +165,13 @@ public class Client {
 		long nonceToServer = this.signatureManager.generateNonce(); // We use the same nonce for all server replicas
 		Balance initialBalance = buildInitialBalance();
 		byte[] balanceSignature = this.signatureManager.signBalance(initialBalance);
+		ListSizes listSizes = buildListSizes(0, 0, 0);
+		byte[] sizesSignature = this.signatureManager.signListSizes(listSizes);
 		int numAcks = 0;
 		for (int replicaID = 0; replicaID < numberOfServerReplicas; replicaID++) {
 			ServerServiceBlockingStub stub = stubs.get(replicaID);
 			try {
-				OpenAccountRequest request = buildOpenAccountRequest(nonceToServer, replicaID, initialBalance, balanceSignature);
+				OpenAccountRequest request = buildOpenAccountRequest(nonceToServer, replicaID, initialBalance, balanceSignature, listSizes, sizesSignature);
 				var nonceToClient = requestNonce(stub);
 				var response = openAccount(stub, request, nonceToClient);
 				byte[] serverSignature = response.getSignature().toByteArray();
@@ -181,41 +193,41 @@ public class Client {
 		return builder.build();
 	}
 
-	public ReadBalanceForWriteRequest buildReadBalanceForWriteRequest(long nonceToServer, int replicaID) throws CypherFailedException {
+	public ReadForWriteRequest buildReadForWriteRequest(long nonceToServer, int replicaID) throws CypherFailedException {
 		ByteString cypheredNonceToServer = getCypheredNonceToServer(nonceToServer, replicaID);
-		ReadBalanceForWriteRequest.Builder builder = ReadBalanceForWriteRequest.newBuilder();
-		builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
+		ReadForWriteRequest.Builder builder = ReadForWriteRequest.newBuilder();
+		builder.setSenderKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
 		builder.setCypheredNonce(cypheredNonceToServer);
-		ReadBalanceForWriteRequest content = builder.build();
+		ReadForWriteRequest content = builder.build();
 		debugRequestHistory.add(content);
 		return content;
 	}
 
-	public SignedReadBalanceForWriteResponse readBalanceForWrite(ServerServiceBlockingStub stub, ReadBalanceForWriteRequest content, long nonceToClient)
+	public SignedReadForWriteResponse readForWrite(ServerServiceBlockingStub stub, ReadForWriteRequest content, long nonceToClient)
 			throws CypherFailedException {
 		byte[] signature = this.signatureManager.sign(nonceToClient, content.toByteArray());
-		SignedReadBalanceForWriteRequest.Builder signedBuilder = SignedReadBalanceForWriteRequest.newBuilder();
+		SignedReadForWriteRequest.Builder signedBuilder = SignedReadForWriteRequest.newBuilder();
 		signedBuilder.setContent(content);
 		signedBuilder.setSignature(ByteString.copyFrom(signature));
-		SignedReadBalanceForWriteRequest signedRequest = signedBuilder.build();
+		SignedReadForWriteRequest signedRequest = signedBuilder.build();
 		debugRequestHistory.add(signedRequest);
-		return stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).readBalanceForWrite(signedRequest);
+		return stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).readForWrite(signedRequest);
 	}
 
-	public Balance readBalanceForWrite() throws NotEnoughValidResponsesException {
+	public InfoForWrite readForWrite() throws NotEnoughValidResponsesException {
 		long nonceToServer = this.signatureManager.generateNonce(); // We use the same nonce for all server replicas
-		List<Balance> readList = new ArrayList<>();
+		List<ReadForWriteResponse> readList = new ArrayList<>();
 		for (int replicaID = 0; replicaID < numberOfServerReplicas; replicaID++) {
 			ServerServiceBlockingStub stub = stubs.get(replicaID);
 			try {
-				ReadBalanceForWriteRequest request = buildReadBalanceForWriteRequest(nonceToServer, replicaID);
+				ReadForWriteRequest request = buildReadForWriteRequest(nonceToServer, replicaID);
 				var nonceToClient = requestNonce(stub);
-				var response = readBalanceForWrite(stub, request, nonceToClient);
+				var response = readForWrite(stub, request, nonceToClient);
 				byte[] serverSignature = response.getSignature().toByteArray();
 				if (this.signatureManager.isNonceSignatureValid(this.serverPublicKeys.get(replicaID), serverSignature)) {
 					var content = response.getContent();
 					if (this.signatureManager.isBalanceSignatureValid(content.getBalanceSignature().toByteArray(), content.getBalance())) {
-						readList.add(content.getBalance());
+						readList.add(content);
 					}
 				}
 			}
@@ -225,17 +237,18 @@ public class Client {
 		}
 		printNumAcks(readList.size());
 		if (readList.size() > numberOfNeededResponses()) {
-			return getMostRecentBalance(readList);
+			return new InfoForWrite(getMostRecentBalance(readList), getMostRecentListSizes(readList, 0), getMostRecentListSizes(readList, 1));
 		}
 		else {
 			throw new NotEnoughValidResponsesException();
 		}
 	}
 
-	private Balance getMostRecentBalance(List<Balance> readList) throws NotEnoughValidResponsesException {
+	private Balance getMostRecentBalance(List<ReadForWriteResponse> readList) throws NotEnoughValidResponsesException {
 		int highestWts = -1;
 		Balance mostRecentBalance = null;
-		for (Balance balance : readList) {
+		for (ReadForWriteResponse response : readList) {
+			Balance balance = response.getBalance();
 			if (balance.getWts() > highestWts) {
 				highestWts = balance.getWts();
 				mostRecentBalance = balance;
@@ -245,13 +258,31 @@ public class Client {
 		return mostRecentBalance;
 	}
 
-	public SendAmountRequest buildSendAmountRequest(long nonceToServer, int replicaID, Transfer transfer, byte[] senderSignature, Balance balance, byte[] balanceSignature) throws CypherFailedException {
+	private ListSizes getMostRecentListSizes(List<ReadForWriteResponse> readList, int mode) throws NotEnoughValidResponsesException {
+		int highestWts = -1;
+		ListSizes mostRecentListSizes = null;
+		for (ReadForWriteResponse response : readList) {
+			ListSizes listSizes = (mode == 0) ? response.getSenderListSizes() : response.getReceiverListSizes();
+			if (listSizes.getWts() > highestWts) {
+				highestWts = listSizes.getWts();
+				mostRecentListSizes = listSizes;
+			}
+		}
+		if (mostRecentListSizes == null) throw new NotEnoughValidResponsesException();
+		return mostRecentListSizes;
+	}
+
+	public SendAmountRequest buildSendAmountRequest(long nonceToServer, int replicaID, Transfer transfer, byte[] senderSignature,
+			Balance balance, byte[] balanceSignature, ListSizes receiverListSizes, byte[] receiverSizesSignature)
+			throws CypherFailedException {
 		ByteString cypheredNonceToServer = getCypheredNonceToServer(nonceToServer, replicaID);
 		SendAmountRequest.Builder builder = SendAmountRequest.newBuilder();
 		builder.setTransfer(transfer);
-		builder.setSenderSignature(ByteString.copyFrom(senderSignature));
+		builder.setSenderTransferSignature(ByteString.copyFrom(senderSignature));
 		builder.setNewBalance(balance);
 		builder.setBalanceSignature(ByteString.copyFrom(balanceSignature));
+		builder.setReceiverListSizes(receiverListSizes);
+		builder.setReceiverSizesSignature(ByteString.copyFrom(receiverSizesSignature));
 		builder.setCypheredNonce(cypheredNonceToServer);
 		SendAmountRequest content = builder.build();
 		debugRequestHistory.add(content);
@@ -275,13 +306,16 @@ public class Client {
 		long nonceToServer = this.signatureManager.generateNonce(); // We use the same nonce for all server replicas
 		Transfer newTransfer = buildTransfer(System.currentTimeMillis(), this.userPublicKey, Resources.getPublicKeyByUserId(destinationUserId), amount);
 		byte[] senderSignature = this.signatureManager.sign(newTransfer.toByteArray());
-		Balance newBalance = getDecrementedBalance(amount);
+		InfoForWrite infoForWrite = readForWrite();
+		Balance newBalance = getDecrementedBalance(infoForWrite.getBalance(), amount);
 		byte[] balanceSignature = this.signatureManager.signBalance(newBalance);
+		ListSizes newReceiverListSizes = getListSizesNewPending(infoForWrite.getSenderListSizes());
+		byte[] receiverSizesSignature = this.signatureManager.signListSizes(newReceiverListSizes);
 		int numAcks = 0;
 		for (int replicaID = 0; replicaID < numberOfServerReplicas; replicaID++) {
 			ServerServiceBlockingStub stub = stubs.get(replicaID);
 			try {
-				SendAmountRequest request = buildSendAmountRequest(nonceToServer, replicaID, newTransfer, senderSignature, newBalance, balanceSignature);
+				SendAmountRequest request = buildSendAmountRequest(nonceToServer, replicaID, newTransfer, senderSignature, newBalance, balanceSignature, newReceiverListSizes, receiverSizesSignature);
 				var nonceToClient = requestNonce(stub);
 				var response = sendAmount(stub, request, nonceToClient);
 				byte[] serverSignature = response.getSignature().toByteArray();
@@ -294,17 +328,38 @@ public class Client {
 			}
 		}
 		printNumAcks(numAcks);
-		if (numAcks > numberOfNeededResponses()) {
-			// TODO: send "commit" to all replicas, which includes the list of nonces and list of responses
-		}
+		if (numAcks < numberOfNeededResponses()) throw new NotEnoughValidResponsesException();
 	}
 
-	private Balance getDecrementedBalance(int amount) throws NotEnoughValidResponsesException {
-		return getIncrementedBalance(-amount);
+	private ListSizes getListSizesNewPending(ListSizes listSizes) {
+		ListSizes.Builder builder = ListSizes.newBuilder();
+		builder.setPendingSize(listSizes.getPendingSize() + 1);
+		builder.setApprovedSize(listSizes.getApprovedSize());
+		builder.setWts(listSizes.getWts() + 1);
+		return builder.build();
 	}
 
-	private Balance getIncrementedBalance(int amount) throws NotEnoughValidResponsesException {
-		Balance currentBalance = readBalanceForWrite();
+	private ListSizes getListSizesNewApproved(ListSizes listSizes) {
+		ListSizes.Builder builder = ListSizes.newBuilder();
+		builder.setPendingSize(listSizes.getPendingSize());
+		builder.setApprovedSize(listSizes.getApprovedSize() + 1);
+		builder.setWts(listSizes.getWts() + 1);
+		return builder.build();
+	}
+
+	private ListSizes getListSizesPendingToApproved(ListSizes listSizes) {
+		ListSizes.Builder builder = ListSizes.newBuilder();
+		builder.setPendingSize(listSizes.getPendingSize() - 1);
+		builder.setApprovedSize(listSizes.getApprovedSize() + 1);
+		builder.setWts(listSizes.getWts() + 1);
+		return builder.build();
+	}
+
+	private Balance getDecrementedBalance(Balance currentBalance, int amount) throws NotEnoughValidResponsesException {
+		return getIncrementedBalance(currentBalance, -amount);
+	}
+
+	private Balance getIncrementedBalance(Balance currentBalance, int amount) throws NotEnoughValidResponsesException {
 		Balance.Builder builder = Balance.newBuilder();
 		builder.setValue(currentBalance.getValue() + amount);
 		builder.setWts(currentBalance.getWts() + 1);
@@ -388,14 +443,20 @@ public class Client {
 		return lastCheckAccountTransfers.get(transferNum);
 	}
 
-	public ReceiveAmountRequest buildReceiveAmountRequest(long nonceToServer, int replicaID, Transfer transfer, byte[] receiverSignature, Balance balance, byte[] balanceSignature)
-			throws InvalidTransferNumberException, CypherFailedException {
+	public ReceiveAmountRequest buildReceiveAmountRequest(long nonceToServer, int replicaID, Transfer transfer,
+			byte[] receiverSignature, Balance balance, byte[] balanceSignature, ListSizes senderListSizes,
+			byte[] senderSizesSignature, ListSizes receiverListSizes, byte[] receiverSizesSignature)
+			throws CypherFailedException {
 		ByteString cypheredNonceToServer = getCypheredNonceToServer(nonceToServer, replicaID);
 		ReceiveAmountRequest.Builder builder = ReceiveAmountRequest.newBuilder();
 		builder.setTransfer(transfer);
-		builder.setReceiverSignature(ByteString.copyFrom(receiverSignature));
+		builder.setReceiverTransferSignature(ByteString.copyFrom(receiverSignature));
 		builder.setNewBalance(balance);
 		builder.setBalanceSignature(ByteString.copyFrom(balanceSignature));
+		builder.setSenderListSizes(senderListSizes);
+		builder.setSenderSizesSignature(ByteString.copyFrom(senderSizesSignature));
+		builder.setReceiverListSizes(receiverListSizes);
+		builder.setReceiverSizesSignature(ByteString.copyFrom(receiverSizesSignature));
 		builder.setCypheredNonce(cypheredNonceToServer);
 		ReceiveAmountRequest content = builder.build();
 		debugRequestHistory.add(content);
@@ -419,13 +480,19 @@ public class Client {
 
 		Transfer targetTransfer = getTransferFromNumber(transferNum);
 		byte[] receiverSignature = this.signatureManager.sign(targetTransfer.toByteArray());
-		Balance newBalance = getIncrementedBalance(targetTransfer.getAmount());
+		InfoForWrite infoForWrite = readForWrite();
+		Balance newBalance = getIncrementedBalance(infoForWrite.getBalance(), targetTransfer.getAmount());
 		byte[] balanceSignature = this.signatureManager.signBalance(newBalance);
+		ListSizes senderListSizes = getListSizesNewApproved(infoForWrite.getSenderListSizes());
+		byte[] senderSizesSignature = this.signatureManager.signListSizes(senderListSizes);
+		ListSizes receiverListSizes = getListSizesPendingToApproved(infoForWrite.getReceiverListSizes());
+		byte[] receiverSizesSignature = this.signatureManager.signListSizes(receiverListSizes);
 		int numAcks = 0;
 		for (int replicaID = 0; replicaID < numberOfServerReplicas; replicaID++) {
 			ServerServiceBlockingStub stub = stubs.get(replicaID);
 			try {
-				ReceiveAmountRequest request = buildReceiveAmountRequest(nonceToServer, replicaID, targetTransfer, receiverSignature, newBalance, balanceSignature);
+				ReceiveAmountRequest request = buildReceiveAmountRequest(nonceToServer, replicaID, targetTransfer, receiverSignature,
+						newBalance, balanceSignature, senderListSizes, senderSizesSignature, receiverListSizes, receiverSizesSignature);
 				var nonceToClient = requestNonce(stub);
 				var response = receiveAmount(stub, request, nonceToClient);
 				byte[] serverSignature = response.getSignature().toByteArray();
@@ -433,15 +500,12 @@ public class Client {
 					numAcks++;
 				}
 			}
-			catch (StatusRuntimeException | NonceRequestFailedException | CypherFailedException | SignatureVerificationFailedException |
-			       InvalidTransferNumberException e) {
+			catch (StatusRuntimeException | NonceRequestFailedException | CypherFailedException | SignatureVerificationFailedException e) {
 				handleException(e);
 			}
 		}
 		printNumAcks(numAcks);
-		if (numAcks > numberOfNeededResponses()) {
-			// TODO: send "commit" to all replicas, which includes the list of nonces and list of responses
-		}
+		if (numAcks < numberOfNeededResponses()) throw new NotEnoughValidResponsesException();
 	}
 
 	// Audit

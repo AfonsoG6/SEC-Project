@@ -7,7 +7,9 @@ message OpenAccountRequest {
   bytes publicKey = 1;
   Balance initialBalance = 2;
   bytes balanceSignature = 3;
-  bytes cypheredNonce = 4; // Challenge created by the CLIENT
+  ListSizes listSizes = 4;
+  bytes sizesSignature = 5;
+  bytes cypheredNonce = 6; // Challenge created by the CLIENT
 }
 
 message SignedOpenAccountRequest {
@@ -23,23 +25,28 @@ message SignedOpenAccountResponse {
 
 //-----------------------------------------Read Balance For Write Operation---------------------------------------------
 
-message ReadBalanceForWriteRequest {
-  bytes publicKey = 1;
-  bytes cypheredNonce = 2; // Challenge created by the CLIENT
+message ReadForWriteRequest {
+  bytes senderKey = 1;
+  bytes receiverKey = 2;
+  bytes cypheredNonce = 3; // Challenge created by the CLIENT
 }
 
-message SignedReadBalanceForWriteRequest {
-  ReadBalanceForWriteRequest content = 1;
+message SignedReadForWriteRequest {
+  ReadForWriteRequest content = 1;
   bytes signature = 2; // Signature created by the CLIENT
 }
 
-message ReadBalanceForWriteResponse {
+message ReadForWriteResponse {
   Balance balance = 1;
   bytes balanceSignature = 2;
+  ListSizes senderListSizes = 3;
+  bytes senderListSizesSignature = 4;
+  ListSizes receiverListSizes = 5;
+  bytes receiverListSizesSignature = 6;
 }
 
-message SignedReadBalanceForWriteResponse {
-  ReadBalanceForWriteResponse content = 1;
+message SignedReadForWriteResponse {
+  ReadForWriteResponse content = 1;
   bytes signature = 2; // Signature created by the SERVER
 }
 
@@ -47,10 +54,12 @@ message SignedReadBalanceForWriteResponse {
 
 message SendAmountRequest {
   Transfer transfer = 1;
-  bytes senderSignature = 2;
+  bytes senderTransferSignature = 2;
   Balance newBalance = 3;
   bytes balanceSignature = 4;
-  bytes cypheredNonce = 5; // Challenge created by the CLIENT
+  ListSizes receiverListSizes = 5;
+  bytes receiverSizesSignature = 6;
+  bytes cypheredNonce = 7; // Challenge created by the CLIENT
 }
 
 message SignedSendAmountRequest {
@@ -90,10 +99,14 @@ message SignedCheckAccountResponse {
 
 message ReceiveAmountRequest {
   Transfer transfer = 1;
-  bytes receiverSignature = 2;
+  bytes receiverTransferSignature = 2;
   Balance newBalance = 3;
   bytes balanceSignature = 4;
-  bytes cypheredNonce = 5; // Challenge created by the CLIENT
+  ListSizes senderListSizes = 5;
+  bytes senderSizesSignature = 6;
+  ListSizes receiverListSizes = 7;
+  bytes receiverSizesSignature = 8;
+  bytes cypheredNonce = 9; // Challenge created by the CLIENT
 }
 
 message SignedReceiveAmountRequest {
@@ -152,11 +165,17 @@ message Balance {
   int32 wts = 2;
 }
 
+message ListSizes {
+  int32 pendingSize = 1;
+  int32 approvedSize = 2;
+  int32 wts = 3;
+}
+
 //--------------------------------------------Service-------------------------------------------------------------------
 
 service ServerService {
   rpc open_account(SignedOpenAccountRequest) returns (SignedOpenAccountResponse);
-  rpc read_balance_for_write(SignedReadBalanceForWriteRequest) returns (SignedReadBalanceForWriteResponse);
+  rpc read_for_write(SignedReadForWriteRequest) returns (SignedReadForWriteResponse);
   rpc send_amount(SignedSendAmountRequest) returns (SignedSendAmountResponse);
   rpc check_account(SignedCheckAccountRequest) returns (SignedCheckAccountResponse);
   rpc receive_amount(SignedReceiveAmountRequest) returns (SignedReceiveAmountResponse);

@@ -2,8 +2,7 @@ package pt.tecnico.sec.bftb.server;
 
 import com.google.protobuf.ByteString;
 import pt.tecnico.sec.bftb.server.exceptions.*;
-import pt.tecnico.sec.bftb.grpc.Server.Transfer;
-import pt.tecnico.sec.bftb.grpc.Server.Balance;
+import pt.tecnico.sec.bftb.grpc.Server.*;
 
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
@@ -36,13 +35,39 @@ public class Server {
 		return signatureManager;
 	}
 
-	public void openAccount(ByteString publicKey, Balance balance, ByteString balanceSignature)
+	private void verifyInitialBalance(ByteString userPublicKeyBS, Balance initialBalance, ByteString signature)
+			throws InvalidNewBalanceException, NoSuchAlgorithmException, SignatureVerificationFailedException,
+			InvalidKeySpecException {
+		if (initialBalance.getValue() != INITIAL_BALANCE || initialBalance.getWts() != 0) {
+			throw new InvalidNewBalanceException();
+		}
+		PublicKey userPublicKey = publicKeyFromByteString(userPublicKeyBS);
+		if (this.signatureManager.isBalanceSignatureValid(userPublicKey, signature.toByteArray(), initialBalance)) {
+			throw new InvalidNewBalanceException("Balance signature does not match received balance");
+		}
+	}
+
+	private void verifyInitialListSizes(ByteString userPublicKeyBS, ListSizes initialListSizes, ByteString signature)
+			throws NoSuchAlgorithmException, SignatureVerificationFailedException,
+			InvalidKeySpecException, InvalidNewListSizesException {
+		if (initialListSizes.getPendingSize() != 0 || initialListSizes.getApprovedSize() != 0 || initialListSizes.getWts() != 0) {
+			throw new InvalidNewListSizesException();
+		}
+		PublicKey userPublicKey = publicKeyFromByteString(userPublicKeyBS);
+		if (this.signatureManager.isListSizesSignatureValid(userPublicKey, signature.toByteArray(), initialListSizes)) {
+			throw new InvalidNewListSizesException("ListSizes signature does not match received listSizes");
+		}
+	}
+
+	public void openAccount(ByteString publicKey, Balance balance, ByteString balanceSignature, ListSizes listSizes, ByteString sizesSignature)
 			throws AccountAlreadyExistsException, SQLException, NoSuchAlgorithmException, InvalidKeySpecException,
-			InvalidNewBalanceException, SignatureVerificationFailedException {
+			InvalidNewBalanceException, SignatureVerificationFailedException, InvalidNewListSizesException {
 		if (db.checkAccountExists(publicKey)) throw new AccountAlreadyExistsException();
 		verifyInitialBalance(publicKey, balance, balanceSignature);
+		verifyInitialListSizes(publicKey, listSizes, sizesSignature);
 
-		db.insertAccount(publicKey, INITIAL_BALANCE);
+		db.insertAccount(publicKey, INITIAL_BALANCE, balance.getWts(), balanceSignature, listSizes.getPendingSize(),
+				listSizes.getApprovedSize(), listSizes.getWts(), sizesSignature);
 	}
 
 	public BalanceRecord readBalanceForWrite(ByteString publicKey) throws AccountDoesNotExistException, SQLException {
@@ -97,18 +122,6 @@ public class Server {
 
 	private PublicKey publicKeyFromByteString(ByteString publicKeyBS) throws NoSuchAlgorithmException, InvalidKeySpecException {
 		return KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBS.toByteArray()));
-	}
-
-	private void verifyInitialBalance(ByteString userPublicKeyBS, Balance initialBalance, ByteString signature)
-			throws InvalidNewBalanceException, NoSuchAlgorithmException, SignatureVerificationFailedException,
-			InvalidKeySpecException {
-		if (initialBalance.getValue() != INITIAL_BALANCE || initialBalance.getWts() != 0) {
-			throw new InvalidNewBalanceException();
-		}
-		PublicKey userPublicKey = publicKeyFromByteString(userPublicKeyBS);
-		if (this.signatureManager.isBalanceSignatureValid(userPublicKey, signature.toByteArray(), initialBalance)) {
-			throw new InvalidNewBalanceException("Balance signature does not match received balance");
-		}
 	}
 
 	private void verifyNewBalance(ByteString userPublicKeyBS, Balance newBalance, ByteString signature, int expectedDiff)

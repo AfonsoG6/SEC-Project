@@ -127,6 +127,10 @@ public class SignatureManager {
 		return sign(transfer.toByteArray());
 	}
 
+	public byte[] signListSizes(ListSizes listSizes) throws CypherFailedException {
+		return sign(listSizes.toByteArray());
+	}
+
 	public byte[] sign(byte[] content) throws CypherFailedException {
 		try {
 			// Hash it with SHA-256

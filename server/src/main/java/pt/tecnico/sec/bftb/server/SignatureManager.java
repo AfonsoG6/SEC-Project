@@ -112,14 +112,19 @@ public class SignatureManager {
 		}
 	}
 
-	public boolean isBalanceSignatureValid(PublicKey peerPublicKey, byte[] signature, Balance balance) throws
+	public boolean isBalanceSignatureValid(PublicKey publicKey, byte[] signature, Balance balance) throws
 			SignatureVerificationFailedException {
-		return isSignatureValid(peerPublicKey, signature, balance.toByteArray());
+		return isSignatureValid(publicKey, signature, balance.toByteArray());
 	}
 
-	public boolean isTransferSignatureValid(PublicKey peerPublicKey, byte[] signature, Transfer transfer) throws
+	public boolean isTransferSignatureValid(PublicKey publicKey, byte[] signature, Transfer transfer) throws
 			SignatureVerificationFailedException {
-		return isSignatureValid(peerPublicKey, signature, transfer.toByteArray());
+		return isSignatureValid(publicKey, signature, transfer.toByteArray());
+	}
+
+	public boolean isListSizesSignatureValid(PublicKey publicKey, byte[] signature, ListSizes listSizes) throws
+			SignatureVerificationFailedException {
+		return isSignatureValid(publicKey, signature, listSizes.toByteArray());
 	}
 
 	public byte[] sign(long nonce, byte[] content) throws CypherFailedException {

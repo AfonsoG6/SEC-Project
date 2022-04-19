@@ -52,10 +52,12 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			ByteString publicKeyBS = content.getPublicKey();
 			Balance initialBalance = content.getInitialBalance();
 			ByteString balanceSignature = content.getBalanceSignature();
+			ListSizes listSizes = content.getListSizes();
+			ByteString listSizesSignature = content.getSizesSignature();
 			byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
 			if (!checkRequestSignature(publicKeyBS, request.getSignature(), content.toByteArray(), responseObserver)) return;
 			// Execute the request
-			server.openAccount(publicKeyBS, initialBalance, balanceSignature);
+			server.openAccount(publicKeyBS, initialBalance, balanceSignature, listSizes, listSizesSignature);
 			// Build Signed Response
 			SignedOpenAccountResponse.Builder signedBuilder = SignedOpenAccountResponse.newBuilder();
 			long nonceToServer = getServerSignatureManager().decypherNonce(cypheredNonceToServer);
@@ -74,38 +76,38 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			e.printStackTrace();
 			responseObserver.onError(ALREADY_EXISTS.withDescription(e.getMessage()).asRuntimeException());
 		}
-		catch (InvalidNewBalanceException e) {
+		catch (InvalidNewBalanceException | InvalidNewListSizesException e) {
 			e.printStackTrace();
 			responseObserver.onError(INVALID_ARGUMENT.withDescription(e.getMessage()).asRuntimeException());
 		}
 	}
 
 	@Override
-	public void readBalanceForWrite(SignedReadBalanceForWriteRequest request, StreamObserver<SignedReadBalanceForWriteResponse> responseObserver) {
+	public void readForWrite(SignedReadForWriteRequest request, StreamObserver<SignedReadForWriteResponse> responseObserver) {
 		if (Context.current().isCancelled()) {
 			responseObserver.onError(DEADLINE_EXCEEDED.withDescription(DEADLINE_EXCEEDED_DESC).asRuntimeException());
 			return;
 		}
 		try {
 			// Parse request & Check its Validity
-			ReadBalanceForWriteRequest content = request.getContent();
-			ByteString publicKeyBS = content.getPublicKey();
+			ReadForWriteRequest content = request.getContent();
+			ByteString senderKeyBS = content.getSenderKey();
 			byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
-			if (!checkRequestSignature(publicKeyBS, request.getSignature(), content.toByteArray(), responseObserver)) return;
+			if (!checkRequestSignature(senderKeyBS, request.getSignature(), content.toByteArray(), responseObserver)) return;
 			// Execute the request
-			BalanceRecord balanceRecord = server.readBalanceForWrite(publicKeyBS);
+			BalanceRecord balanceRecord = server.readBalanceForWrite(senderKeyBS);
 			// Build Response
-			ReadBalanceForWriteResponse.Builder builder = ReadBalanceForWriteResponse.newBuilder();
+			ReadForWriteResponse.Builder builder = ReadForWriteResponse.newBuilder();
 			builder.setBalance(balanceRecord.getBalance());
 			builder.setBalanceSignature(ByteString.copyFrom(balanceRecord.getSignature()));
-			ReadBalanceForWriteResponse response = builder.build();
+			ReadForWriteResponse response = builder.build();
 			// Build Signed Response
-			SignedReadBalanceForWriteResponse.Builder signedBuilder = SignedReadBalanceForWriteResponse.newBuilder();
+			SignedReadForWriteResponse.Builder signedBuilder = SignedReadForWriteResponse.newBuilder();
 			signedBuilder.setContent(response);
 			long nonceToServer = getServerSignatureManager().decypherNonce(cypheredNonceToServer);
 			byte[] serverSignature = getServerSignatureManager().sign(nonceToServer);
 			signedBuilder.setSignature(ByteString.copyFrom(serverSignature));
-			SignedReadBalanceForWriteResponse signedResponse = signedBuilder.build();
+			SignedReadForWriteResponse signedResponse = signedBuilder.build();
 			// Send Response
 			responseObserver.onNext(signedResponse);
 			responseObserver.onCompleted();
