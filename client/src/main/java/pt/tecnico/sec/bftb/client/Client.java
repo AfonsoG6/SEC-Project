@@ -225,13 +225,12 @@ public class Client {
 				var nonceToClient = requestNonce(stub);
 				var response = readForWrite(stub, request, nonceToClient);
 				byte[] serverSignature = response.getSignature().toByteArray();
-				if (this.signatureManager.isNonceSignatureValid(this.serverPublicKeys.get(replicaID), serverSignature)) {
-					var content = response.getContent();
-					if (this.signatureManager.isBalanceSignatureValid(content.getBalanceSignature().toByteArray(), content.getBalance()) &&
-							this.signatureManager.isListSizesSignatureValid(publicKeyFromByteString(content.getReceiverListSizesSigner()), content.getReceiverListSizesSignature().toByteArray(), content.getReceiverListSizes()) &&
-							this.signatureManager.isListSizesSignatureValid(publicKeyFromByteString(content.getSenderListSizesSigner()), content.getSenderListSizesSignature().toByteArray(), content.getSenderListSizes())) {
-						readList.add(content);
-					}
+				var content = response.getContent();
+				if (this.signatureManager.isNonceSignatureValid(this.serverPublicKeys.get(replicaID), serverSignature, content.toByteArray()) &&
+						this.signatureManager.isBalanceSignatureValid(content.getBalanceSignature().toByteArray(), content.getBalance()) &&
+						this.signatureManager.isListSizesSignatureValid(publicKeyFromByteString(content.getReceiverListSizesSigner()), content.getReceiverListSizesSignature().toByteArray(), content.getReceiverListSizes()) &&
+						this.signatureManager.isListSizesSignatureValid(publicKeyFromByteString(content.getSenderListSizesSigner()), content.getSenderListSizesSignature().toByteArray(), content.getSenderListSizes())) {
+					readList.add(content);
 				}
 			}
 			catch (StatusRuntimeException | NonceRequestFailedException | CypherFailedException | SignatureVerificationFailedException | NoSuchAlgorithmException | InvalidKeySpecException e) {
@@ -408,10 +407,10 @@ public class Client {
 		return stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).checkAccount(signedRequest);
 	}
 
-	public void checkAccount() throws NoSuchAlgorithmException, InvalidKeySpecException {
+	public void checkAccount()
+			throws NoSuchAlgorithmException, InvalidKeySpecException, NotEnoughValidResponsesException {
 		long nonceToServer = this.signatureManager.generateNonce(); // We use the same nonce for all server replicas
-		List<SignedCheckAccountResponse> responses = new ArrayList<>();
-		int numAcks = 0;
+		List<CheckAccountResponse> readList = new ArrayList<>();
 		for (int replicaID = 0; replicaID < numberOfServerReplicas; replicaID++) {
 			ServerServiceBlockingStub stub = stubs.get(replicaID);
 			try {
@@ -419,24 +418,52 @@ public class Client {
 				var nonceToClient = requestNonce(stub);
 				var response = checkAccount(stub, request, nonceToClient);
 				byte[] serverSignature = response.getSignature().toByteArray();
-				byte[] responseContent = response.getContent().toByteArray();
-				if (this.signatureManager.isNonceSignatureValid(this.serverPublicKeys.get(replicaID), serverSignature, responseContent)) {
-					responses.add(response);
-					numAcks++;
+				var content = response.getContent();
+				if (this.signatureManager.isNonceSignatureValid(this.serverPublicKeys.get(replicaID), serverSignature, content.toByteArray())) {
+					readList.add(content);
 				}
 			}
 			catch (StatusRuntimeException | NonceRequestFailedException | CypherFailedException | SignatureVerificationFailedException e) {
 				handleException(e);
 			}
 		}
-		printNumAcks(numAcks);
-		if (numAcks > numberOfNeededResponses()) {
-			// TODO: select best response
-			lastCheckAccountTransfers = responses.get(0).getContent().getPendingTransfersList();
-			System.out.println("Balance: " + responses.get(0).getContent().getBalance());
+		printNumAcks(readList.size());
+		if (readList.size() > numberOfNeededResponses()) {
+			int balance = getMostRecentBalanceValue(readList);
+			List<Transfer> pendingTransfers = getMostRecentPendingTransfersList(readList);
+			this.lastCheckAccountTransfers = pendingTransfers;
+			System.out.println("Balance: " + balance);
 			System.out.println("Pending Transfers: ");
-			System.out.println(buildTransferListString(responses.get(0).getContent().getPendingTransfersList()));
+			System.out.println(buildTransferListString(pendingTransfers));
 		}
+	}
+
+	private int getMostRecentBalanceValue(List<CheckAccountResponse> readList) throws NotEnoughValidResponsesException {
+		int highestWts = -1;
+		CheckAccountResponse mostRecentBalance = null;
+		for (CheckAccountResponse response : readList) {
+			int wts = response.getBalance().getWts();
+			if (wts > highestWts) {
+				highestWts = wts;
+				mostRecentBalance = response;
+			}
+		}
+		if (mostRecentBalance == null) throw new NotEnoughValidResponsesException();
+		return mostRecentBalance.getBalance().getValue();
+	}
+
+	private List<Transfer> getMostRecentPendingTransfersList(List<CheckAccountResponse> readList) throws NotEnoughValidResponsesException {
+		int highestWts = -1;
+		CheckAccountResponse bestResponse = null;
+		for (CheckAccountResponse response : readList) {
+			int wts = response.getListSizes().getWts();
+			if (wts > highestWts) {
+				highestWts = wts;
+				bestResponse = response;
+			}
+		}
+		if (bestResponse == null) throw new NotEnoughValidResponsesException();
+		return bestResponse.getPendingTransfersList();
 	}
 
 	public Transfer getTransferFromNumber(int transferNum)
@@ -533,10 +560,9 @@ public class Client {
 		return stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).audit(signedRequest);
 	}
 
-	public void audit() throws NoSuchAlgorithmException, InvalidKeySpecException {
+	public void audit() throws NoSuchAlgorithmException, InvalidKeySpecException, NotEnoughValidResponsesException {
 		long nonceToServer = this.signatureManager.generateNonce(); // We use the same nonce for all server replicas
-		List<SignedAuditResponse> responses = new ArrayList<>();
-		int numAcks = 0;
+		List<AuditResponse> readList = new ArrayList<>();
 		for (int replicaID = 0; replicaID < numberOfServerReplicas; replicaID++) {
 			ServerServiceBlockingStub stub = stubs.get(replicaID);
 			try {
@@ -544,22 +570,37 @@ public class Client {
 				var nonceToClient = requestNonce(stub);
 				var response = audit(stub, request, nonceToClient);
 				byte[] serverSignature = response.getSignature().toByteArray();
-				byte[] responseContent = response.getContent().toByteArray();
-				if (this.signatureManager.isNonceSignatureValid(this.serverPublicKeys.get(replicaID), serverSignature, responseContent)) {
-					responses.add(response);
-					numAcks++;
+				var content = response.getContent();
+				if (this.signatureManager.isNonceSignatureValid(this.serverPublicKeys.get(replicaID), serverSignature, content.toByteArray()) &&
+						this.signatureManager.isListSizesSignatureValid(publicKeyFromByteString(content.getListSizesSigner()), content.getListSizesSignature().toByteArray(), content.getListSizes()) &&
+						isApprovedTransferListValid(content.getApprovedTransfersList(), content.getSenderTransferSignaturesList(), content.getReceiverTransferSignaturesList(), content.getListSizes().getApprovedSize())) {
+					readList.add(content);
 				}
 			}
 			catch (StatusRuntimeException | NonceRequestFailedException | CypherFailedException | SignatureVerificationFailedException e) {
 				handleException(e);
 			}
 		}
-		printNumAcks(numAcks);
-		if (numAcks > numberOfNeededResponses()) {
-			// TODO: select best response
+		printNumAcks(readList.size());
+		if (readList.size() > numberOfNeededResponses()) {
+			var approvedTransfers = getMostRecentApprovedTransfersList(readList);
 			System.out.println("Transaction History: ");
-			System.out.println(buildTransferListString(responses.get(0).getContent().getApprovedTransfersList()));
+			System.out.println(buildTransferListString(approvedTransfers));
 		}
+	}
+
+	private List<Transfer> getMostRecentApprovedTransfersList(List<AuditResponse> readList) throws NotEnoughValidResponsesException {
+		int highestWts = -1;
+		AuditResponse bestResponse = null;
+		for (AuditResponse response : readList) {
+			int wts = response.getListSizes().getWts();
+			if (wts > highestWts) {
+				highestWts = wts;
+				bestResponse = response;
+			}
+		}
+		if (bestResponse == null) throw new NotEnoughValidResponsesException();
+		return bestResponse.getApprovedTransfersList();
 	}
 
 	public boolean isPendingTransferListValid(List<Transfer> transfers, List<ByteString> senderSignatures, int expectedSize)
