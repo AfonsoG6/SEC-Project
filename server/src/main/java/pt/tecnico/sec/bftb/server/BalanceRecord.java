@@ -4,6 +4,7 @@ import pt.tecnico.sec.bftb.grpc.Server.*;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Base64;
 
 public class BalanceRecord {
 	private final Balance balance;
@@ -17,9 +18,9 @@ public class BalanceRecord {
 	public BalanceRecord(ResultSet rs) throws SQLException {
 		Balance.Builder builder = Balance.newBuilder();
 		builder.setValue(rs.getInt("balance"));
-		builder.setWts(rs.getInt("wts"));
+		builder.setWts(rs.getInt("balance_wts"));
 		this.balance = builder.build();
-		this.signature = rs.getBytes("sign");
+		this.signature = Base64.getDecoder().decode(rs.getString("balance_signature"));
 	}
 
 	public Balance getBalance() {

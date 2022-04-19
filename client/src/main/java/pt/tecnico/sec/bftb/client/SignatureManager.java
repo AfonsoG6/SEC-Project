@@ -102,6 +102,16 @@ public class SignatureManager {
 		return isSignatureValid(this.publicKey, signature, transfer.toByteArray());
 	}
 
+	public boolean isListSizesSignatureValid(byte[] signature, ListSizes listSizes)
+			throws SignatureVerificationFailedException {
+		return isSignatureValid(this.publicKey, signature, listSizes.toByteArray());
+	}
+
+	public boolean isListSizesSignatureValid(PublicKey signerPublicKey, byte[] signature, ListSizes listSizes)
+			throws SignatureVerificationFailedException {
+		return isSignatureValid(signerPublicKey, signature, listSizes.toByteArray());
+	}
+
 	public boolean isSignatureValid(PublicKey peerPublicKey, byte[] signature, byte[] content) throws
 			SignatureVerificationFailedException {
 		try {

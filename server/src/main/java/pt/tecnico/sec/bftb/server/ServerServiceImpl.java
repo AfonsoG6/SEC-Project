@@ -92,14 +92,23 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			// Parse request & Check its Validity
 			ReadForWriteRequest content = request.getContent();
 			ByteString senderKeyBS = content.getSenderKey();
+			ByteString receiverKeyBS = content.getReceiverKey();
 			byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
 			if (!checkRequestSignature(senderKeyBS, request.getSignature(), content.toByteArray(), responseObserver)) return;
 			// Execute the request
 			BalanceRecord balanceRecord = server.readBalanceForWrite(senderKeyBS);
+			ListSizesRecord senderListSizesRecord = server.readListSizesForWrite(senderKeyBS);
+			ListSizesRecord receiverListSizesRecord = server.readListSizesForWrite(receiverKeyBS);
 			// Build Response
 			ReadForWriteResponse.Builder builder = ReadForWriteResponse.newBuilder();
 			builder.setBalance(balanceRecord.getBalance());
 			builder.setBalanceSignature(ByteString.copyFrom(balanceRecord.getSignature()));
+			builder.setSenderListSizes(senderListSizesRecord.getListSizes());
+			builder.setSenderListSizesSignature(senderListSizesRecord.getSignature());
+			builder.setSenderListSizesSigner(senderListSizesRecord.getSignerPublicKeyBS());
+			builder.setReceiverListSizes(receiverListSizesRecord.getListSizes());
+			builder.setReceiverListSizesSignature(receiverListSizesRecord.getSignature());
+			builder.setReceiverListSizesSigner(receiverListSizesRecord.getSignerPublicKeyBS());
 			ReadForWriteResponse response = builder.build();
 			// Build Signed Response
 			SignedReadForWriteResponse.Builder signedBuilder = SignedReadForWriteResponse.newBuilder();
@@ -132,13 +141,14 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			// Parse Request & Check its Validity
 			SendAmountRequest content = request.getContent();
 			Transfer newTransfer = content.getTransfer();
-			ByteString senderSignature = content.getSenderSignature();
+			ByteString senderTransferSignature = content.getSenderTransferSignature();
 			Balance newBalance = content.getNewBalance();
 			ByteString balanceSignature = content.getBalanceSignature();
+			// TODO: Treat List sizes
 			byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
 			if (!checkRequestSignature(newTransfer.getSenderKey(), request.getSignature(), content.toByteArray(), responseObserver)) return;
 			// Execute Request
-			server.sendAmount(newTransfer, senderSignature, newBalance, balanceSignature);
+			server.sendAmount(newTransfer, senderTransferSignature, newBalance, balanceSignature);
 			// Build Signed Response
 			SignedSendAmountResponse.Builder signedBuilder = SignedSendAmountResponse.newBuilder();
 			long nonceToServer = getServerSignatureManager().decypherNonce(cypheredNonceToServer);
@@ -208,13 +218,14 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			// Parse Request & Check its Validity
 			ReceiveAmountRequest content = request.getContent();
 			Transfer transfer = content.getTransfer();
-			ByteString receiverSignature = content.getReceiverSignature();
+			ByteString receiverTransferSignature = content.getReceiverTransferSignature();
 			Balance newBalance = content.getNewBalance();
 			ByteString balanceSignature = content.getBalanceSignature();
+			// TODO: Treat List sizes
 			byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
 			if (!checkRequestSignature(transfer.getReceiverKey(), request.getSignature(), content.toByteArray(), responseObserver)) return;
 			// Execute Request
-			server.receiveAmount(transfer, receiverSignature, newBalance, balanceSignature);
+			server.receiveAmount(transfer, receiverTransferSignature, newBalance, balanceSignature);
 			// Build Signed Response
 			SignedReceiveAmountResponse.Builder signedBuilder = SignedReceiveAmountResponse.newBuilder();
 			long nonceToServer = getServerSignatureManager().decypherNonce(cypheredNonceToServer);

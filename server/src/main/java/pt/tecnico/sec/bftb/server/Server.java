@@ -59,35 +59,41 @@ public class Server {
 		}
 	}
 
-	public void openAccount(ByteString publicKey, Balance balance, ByteString balanceSignature, ListSizes listSizes, ByteString sizesSignature)
+	public void openAccount(ByteString publicKeyBS, Balance balance, ByteString balanceSignature, ListSizes listSizes, ByteString sizesSignature)
 			throws AccountAlreadyExistsException, SQLException, NoSuchAlgorithmException, InvalidKeySpecException,
 			InvalidNewBalanceException, SignatureVerificationFailedException, InvalidNewListSizesException {
-		if (db.checkAccountExists(publicKey)) throw new AccountAlreadyExistsException();
-		verifyInitialBalance(publicKey, balance, balanceSignature);
-		verifyInitialListSizes(publicKey, listSizes, sizesSignature);
+		if (db.checkAccountExists(publicKeyBS)) throw new AccountAlreadyExistsException();
+		verifyInitialBalance(publicKeyBS, balance, balanceSignature);
+		verifyInitialListSizes(publicKeyBS, listSizes, sizesSignature);
 
-		db.insertAccount(publicKey, INITIAL_BALANCE, balance.getWts(), balanceSignature, listSizes.getPendingSize(),
+		db.insertAccount(publicKeyBS, INITIAL_BALANCE, balance.getWts(), balanceSignature, listSizes.getPendingSize(),
 				listSizes.getApprovedSize(), listSizes.getWts(), sizesSignature);
 	}
 
-	public BalanceRecord readBalanceForWrite(ByteString publicKey) throws AccountDoesNotExistException, SQLException {
-		if (!db.checkAccountExists(publicKey)) throw new AccountDoesNotExistException();
-		return db.readAccountBalanceRecord(publicKey);
+	public BalanceRecord readBalanceForWrite(ByteString publicKeyBS) throws AccountDoesNotExistException, SQLException {
+		if (!db.checkAccountExists(publicKeyBS)) throw new AccountDoesNotExistException();
+		return db.readAccountBalanceRecord(publicKeyBS);
+	}
+
+	public ListSizesRecord readListSizesForWrite(ByteString publicKeyBS)
+			throws AccountDoesNotExistException, SQLException {
+		if (!db.checkAccountExists(publicKeyBS)) throw new AccountDoesNotExistException();
+		return db.readAccountListSizesRecord(publicKeyBS);
 	}
 
 	// Check Account (part 1):
 
-	public int getAccountBalance(ByteString publicKey) throws AccountDoesNotExistException, SQLException {
-		if (!db.checkAccountExists(publicKey)) throw new AccountDoesNotExistException();
-		return db.readAccountBalance(publicKey);
+	public int getAccountBalance(ByteString publicKeyBS) throws AccountDoesNotExistException, SQLException {
+		if (!db.checkAccountExists(publicKeyBS)) throw new AccountDoesNotExistException();
+		return db.readAccountBalance(publicKeyBS);
 	}
 
 	// Check Account (part 2):
 
-	public List<Transfer> getPendingIncomingTransfers(ByteString publicKey)
+	public List<Transfer> getPendingIncomingTransfers(ByteString publicKeyBS)
 			throws AccountDoesNotExistException, SQLException {
-		if (!db.checkAccountExists(publicKey)) throw new AccountDoesNotExistException();
-		return db.getIncomingPendingTransfersOfAccount(publicKey);
+		if (!db.checkAccountExists(publicKeyBS)) throw new AccountDoesNotExistException();
+		return db.getIncomingPendingTransfersOfAccount(publicKeyBS);
 	}
 
 	// Send Amount:
@@ -101,6 +107,8 @@ public class Server {
 		int amount = transfer.getAmount();
 		ByteString senderKeyBS = transfer.getSenderKey();
 		ByteString receiverKeyBS = transfer.getReceiverKey();
+
+		// TODO: Also check and update listSizes
 
 		verifySendAmount(timestamp, amount, senderKeyBS, receiverKeyBS);
 		verifyTransferSignature(senderKeyBS, transfer, senderSignature);
@@ -158,6 +166,8 @@ public class Server {
 		ByteString senderKeyBS = transfer.getSenderKey();
 		ByteString receiverKeyBS = transfer.getReceiverKey();
 		int amount = transfer.getAmount();
+
+		// TODO: Also check and update listSizes
 
 		verifyReceiveAmount(timestamp, senderKeyBS, receiverKeyBS, amount);
 		verifyTransferSignature(senderKeyBS, transfer, receiverSignature);

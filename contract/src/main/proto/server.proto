@@ -41,8 +41,10 @@ message ReadForWriteResponse {
   bytes balanceSignature = 2;
   ListSizes senderListSizes = 3;
   bytes senderListSizesSignature = 4;
-  ListSizes receiverListSizes = 5;
-  bytes receiverListSizesSignature = 6;
+  bytes senderListSizesSigner = 5;
+  ListSizes receiverListSizes = 6;
+  bytes receiverListSizesSignature = 7;
+  bytes receiverListSizesSigner = 8;
 }
 
 message SignedReadForWriteResponse {

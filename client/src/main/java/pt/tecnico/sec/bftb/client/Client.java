@@ -110,6 +110,10 @@ public class Client {
 		}
 	}
 
+	private PublicKey publicKeyFromByteString(ByteString publicKeyBS) throws NoSuchAlgorithmException, InvalidKeySpecException {
+		return KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBS.toByteArray()));
+	}
+
 	private ByteString getCypheredNonceToServer(long nonceToServer, int replicaID) throws CypherFailedException {
 		return ByteString.copyFrom(signatureManager.cypherNonce(this.serverPublicKeys.get(replicaID), nonceToServer));
 	}
@@ -226,12 +230,14 @@ public class Client {
 				byte[] serverSignature = response.getSignature().toByteArray();
 				if (this.signatureManager.isNonceSignatureValid(this.serverPublicKeys.get(replicaID), serverSignature)) {
 					var content = response.getContent();
-					if (this.signatureManager.isBalanceSignatureValid(content.getBalanceSignature().toByteArray(), content.getBalance())) {
+					if (this.signatureManager.isBalanceSignatureValid(content.getBalanceSignature().toByteArray(), content.getBalance()) &&
+							this.signatureManager.isListSizesSignatureValid(publicKeyFromByteString(content.getReceiverListSizesSigner()), content.getReceiverListSizesSignature().toByteArray(), content.getReceiverListSizes()) &&
+							this.signatureManager.isListSizesSignatureValid(publicKeyFromByteString(content.getSenderListSizesSigner()), content.getSenderListSizesSignature().toByteArray(), content.getSenderListSizes())) {
 						readList.add(content);
 					}
 				}
 			}
-			catch (StatusRuntimeException | NonceRequestFailedException | CypherFailedException | SignatureVerificationFailedException e) {
+			catch (StatusRuntimeException | NonceRequestFailedException | CypherFailedException | SignatureVerificationFailedException | NoSuchAlgorithmException | InvalidKeySpecException e) {
 				handleException(e);
 			}
 		}
@@ -355,11 +361,11 @@ public class Client {
 		return builder.build();
 	}
 
-	private Balance getDecrementedBalance(Balance currentBalance, int amount) throws NotEnoughValidResponsesException {
+	private Balance getDecrementedBalance(Balance currentBalance, int amount) {
 		return getIncrementedBalance(currentBalance, -amount);
 	}
 
-	private Balance getIncrementedBalance(Balance currentBalance, int amount) throws NotEnoughValidResponsesException {
+	private Balance getIncrementedBalance(Balance currentBalance, int amount) {
 		Balance.Builder builder = Balance.newBuilder();
 		builder.setValue(currentBalance.getValue() + amount);
 		builder.setWts(currentBalance.getWts() + 1);

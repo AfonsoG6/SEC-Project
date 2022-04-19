@@ -89,12 +89,12 @@ public class SQLiteDatabase {
 		}
 	}
 
-	public int readAccountBalance(ByteString publicKey) throws SQLException {
+	public int readAccountBalance(ByteString publicKeyBS) throws SQLException {
 		try (Connection conn = getConnection()) {
 			String sql =    "SELECT balance FROM accounts " +
 							"WHERE pubkey = ?";
 			try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-				stmt.setString(1, Base64.getEncoder().encodeToString(publicKey.toByteArray()));
+				stmt.setString(1, Base64.getEncoder().encodeToString(publicKeyBS.toByteArray()));
 				try (ResultSet rs = stmt.executeQuery()) {
 					if (rs.next()) {
 						return rs.getInt("balance");
@@ -107,15 +107,33 @@ public class SQLiteDatabase {
 		}
 	}
 
-	public BalanceRecord readAccountBalanceRecord(ByteString publicKey) throws SQLException {
+	public BalanceRecord readAccountBalanceRecord(ByteString publicKeyBS) throws SQLException {
 		try (Connection conn = getConnection()) {
 			String sql =    "SELECT * FROM accounts " +
 							"WHERE pubkey = ?";
 			try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-				stmt.setString(1, Base64.getEncoder().encodeToString(publicKey.toByteArray()));
+				stmt.setString(1, Base64.getEncoder().encodeToString(publicKeyBS.toByteArray()));
 				try (ResultSet rs = stmt.executeQuery()) {
 					if (rs.next()) {
 						return new BalanceRecord(rs);
+					}
+					else {
+						throw new SQLException();
+					}
+				}
+			}
+		}
+	}
+
+	public ListSizesRecord readAccountListSizesRecord(ByteString publicKeyBS) throws SQLException {
+		try (Connection conn = getConnection()) {
+			String sql =    "SELECT * FROM accounts " +
+					"WHERE pubkey = ?";
+			try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+				stmt.setString(1, Base64.getEncoder().encodeToString(publicKeyBS.toByteArray()));
+				try (ResultSet rs = stmt.executeQuery()) {
+					if (rs.next()) {
+						return new ListSizesRecord(rs);
 					}
 					else {
 						throw new SQLException();
