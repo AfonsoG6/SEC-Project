@@ -13,6 +13,7 @@ import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.sql.SQLException;
+import java.util.List;
 
 import static io.grpc.Status.*;
 
@@ -50,10 +51,10 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			// Parse request & Check its Validity
 			OpenAccountRequest content = request.getContent();
 			ByteString publicKeyBS = content.getPublicKey();
-			Balance initialBalance = content.getInitialBalance();
+			Balance initialBalance = content.getBalance();
 			ByteString balanceSignature = content.getBalanceSignature();
 			ListSizes listSizes = content.getListSizes();
-			ByteString listSizesSignature = content.getSizesSignature();
+			ByteString listSizesSignature = content.getListSizesSignature();
 			byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
 			if (!checkRequestSignature(publicKeyBS, request.getSignature(), content.toByteArray(), responseObserver)) return;
 			// Execute the request
@@ -96,13 +97,13 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
 			if (!checkRequestSignature(senderKeyBS, request.getSignature(), content.toByteArray(), responseObserver)) return;
 			// Execute the request
-			BalanceRecord balanceRecord = server.readBalanceForWrite(senderKeyBS);
-			ListSizesRecord senderListSizesRecord = server.readListSizesForWrite(senderKeyBS);
-			ListSizesRecord receiverListSizesRecord = server.readListSizesForWrite(receiverKeyBS);
+			BalanceRecord balanceRecord = server.readBalance(senderKeyBS);
+			ListSizesRecord senderListSizesRecord = server.readListSizes(senderKeyBS);
+			ListSizesRecord receiverListSizesRecord = server.readListSizes(receiverKeyBS);
 			// Build Response
 			ReadForWriteResponse.Builder builder = ReadForWriteResponse.newBuilder();
 			builder.setBalance(balanceRecord.getBalance());
-			builder.setBalanceSignature(ByteString.copyFrom(balanceRecord.getSignature()));
+			builder.setBalanceSignature(balanceRecord.getSignature());
 			builder.setSenderListSizes(senderListSizesRecord.getListSizes());
 			builder.setSenderListSizesSignature(senderListSizesRecord.getSignature());
 			builder.setSenderListSizesSigner(senderListSizesRecord.getSignerPublicKeyBS());
@@ -184,10 +185,26 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			ByteString publicKeyBS = content.getPublicKey();
 			byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
 			if (!checkRequestSignature(publicKeyBS, request.getSignature(), content.toByteArray(), responseObserver)) return;
-			// Execute the request & Build Response
+			// Execute the request
+			BalanceRecord balanceRecord = server.readBalance(publicKeyBS);
+			Balance balance = balanceRecord.getBalance();
+			ByteString balanceSignature = balanceRecord.getSignature();
+			ListSizesRecord listSizesRecord = server.readListSizes(publicKeyBS);
+			ListSizes listSizes = listSizesRecord.getListSizes();
+			ByteString listSizesSignature = listSizesRecord.getSignature();
+			ByteString listSizesSigner = listSizesRecord.getSignerPublicKeyBS();
+			TransfersRecord transfersRecord = server.getPendingIncomingTransfers(publicKeyBS);
+			List<Transfer> pendingTransfers = transfersRecord.getTransfers();
+			List<ByteString> senderSignatures = transfersRecord.getSenderSignatures();
+			// Build Response
 			CheckAccountResponse.Builder builder = CheckAccountResponse.newBuilder();
-			builder.setBalance(server.getAccountBalance(publicKeyBS));
-			builder.addAllPendingTransfers(server.getPendingIncomingTransfers(publicKeyBS));
+			builder.setBalance(balance);
+			builder.setBalanceSignature(balanceSignature);
+			builder.addAllPendingTransfers(pendingTransfers);
+			builder.addAllSenderTransferSignatures(senderSignatures);
+			builder.setListSizes(listSizes);
+			builder.setListSizesSignature(listSizesSignature);
+			builder.setListSizesSigner(listSizesSigner);
 			CheckAccountResponse response = builder.build();
 			// Build Signed Response
 			SignedCheckAccountResponse.Builder signedBuilder = SignedCheckAccountResponse.newBuilder();
@@ -264,9 +281,23 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			ByteString publicKeyBS = content.getPublicKey();
 			byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
 			if (!checkRequestSignature(publicKeyBS, request.getSignature(), content.toByteArray(), responseObserver)) return;
-			// Execute the request & Build Response
+			// Execute the request
+			TransfersRecord transfersRecord = server.getApprovedTransfers(publicKeyBS);
+			List<Transfer> approvedTransfers = transfersRecord.getTransfers();
+			List<ByteString> senderSignatures = transfersRecord.getSenderSignatures();
+			List<ByteString> receiverSignatures = transfersRecord.getReceiverSignatures();
+			ListSizesRecord listSizesRecord = server.readListSizes(publicKeyBS);
+			ListSizes listSizes = listSizesRecord.getListSizes();
+			ByteString sizesSignature = listSizesRecord.getSignature();
+			ByteString sizesSigner = listSizesRecord.getSignerPublicKeyBS();
+			// Build Response
 			AuditResponse.Builder builder = AuditResponse.newBuilder();
-			builder.addAllHistory(server.getApprovedTransfers(publicKeyBS));
+			builder.addAllApprovedTransfers(approvedTransfers);
+			builder.addAllSenderTransferSignatures(senderSignatures);
+			builder.addAllReceiverTransferSignatures(receiverSignatures);
+			builder.setListSizes(listSizes);
+			builder.setListSizesSignature(sizesSignature);
+			builder.setListSizesSigner(sizesSigner);
 			AuditResponse response = builder.build();
 			// Build Signed Response
 			SignedAuditResponse.Builder signedBuilder = SignedAuditResponse.newBuilder();

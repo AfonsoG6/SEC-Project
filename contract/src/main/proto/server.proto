@@ -5,10 +5,10 @@ package pt.tecnico.sec.bftb.grpc;
 
 message OpenAccountRequest {
   bytes publicKey = 1;
-  Balance initialBalance = 2;
+  Balance balance = 2;
   bytes balanceSignature = 3;
   ListSizes listSizes = 4;
-  bytes sizesSignature = 5;
+  bytes listSizesSignature = 5;
   bytes cypheredNonce = 6; // Challenge created by the CLIENT
 }
 
@@ -88,8 +88,13 @@ message SignedCheckAccountRequest {
 }
 
 message CheckAccountResponse {
-  int32 balance = 1;
-  repeated Transfer pendingTransfers = 2;
+  Balance balance = 1;
+  bytes balanceSignature = 2;
+  repeated Transfer pendingTransfers = 3;
+  repeated bytes senderTransferSignatures = 4;
+  ListSizes listSizes = 5;
+  bytes listSizesSignature = 6;
+  bytes listSizesSigner = 7;
 }
 
 message SignedCheckAccountResponse {
@@ -135,7 +140,12 @@ message SignedAuditRequest {
 }
 
 message AuditResponse {
-  repeated Transfer history = 1;
+  repeated Transfer approvedTransfers = 1;
+  repeated bytes senderTransferSignatures = 2;
+  repeated bytes receiverTransferSignatures = 3;
+  ListSizes listSizes = 4;
+  bytes listSizesSignature = 5;
+  bytes listSizesSigner = 6;
 }
 
 message SignedAuditResponse {

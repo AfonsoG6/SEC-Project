@@ -10,12 +10,9 @@ import pt.tecnico.sec.bftb.grpc.Server.*;
 import pt.tecnico.sec.bftb.grpc.ServerServiceGrpc;
 import pt.tecnico.sec.bftb.grpc.ServerServiceGrpc.*;
 
-import java.security.KeyFactory;
-import java.security.NoSuchAlgorithmException;
+import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
-import java.security.PrivateKey;
-import java.security.PublicKey;
 import java.security.cert.CertificateException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -145,10 +142,10 @@ public class Client {
 		OpenAccountRequest.Builder builder = OpenAccountRequest.newBuilder();
 		builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
 		builder.setCypheredNonce(cypheredNonceToServer);
-		builder.setInitialBalance(initialBalance);
+		builder.setBalance(initialBalance);
 		builder.setBalanceSignature(ByteString.copyFrom(balanceSignature));
 		builder.setListSizes(listSizes);
-		builder.setSizesSignature(ByteString.copyFrom(sizesSignature));
+		builder.setListSizesSignature(ByteString.copyFrom(sizesSignature));
 		OpenAccountRequest content = builder.build();
 		debugRequestHistory.add(content);
 		return content;
@@ -434,7 +431,7 @@ public class Client {
 		}
 		printNumAcks(numAcks);
 		if (numAcks > numberOfNeededResponses()) {
-			// TODO: send "commit" to all replicas, which includes the list of nonces and list of responses
+			// TODO: select best response
 			lastCheckAccountTransfers = responses.get(0).getContent().getPendingTransfersList();
 			System.out.println("Balance: " + responses.get(0).getContent().getBalance());
 			System.out.println("Pending Transfers: ");
@@ -559,9 +556,50 @@ public class Client {
 		}
 		printNumAcks(numAcks);
 		if (numAcks > numberOfNeededResponses()) {
-			// TODO: send "commit" to all replicas, which includes the list of nonces and list of responses
+			// TODO: select best response
 			System.out.println("Transaction History: ");
-			System.out.println(buildTransferListString(responses.get(0).getContent().getHistoryList()));
+			System.out.println(buildTransferListString(responses.get(0).getContent().getApprovedTransfersList()));
 		}
+	}
+
+	public boolean isPendingTransferListValid(List<Transfer> transfers, List<ByteString> senderSignatures, int expectedSize)
+			throws NoSuchAlgorithmException, InvalidKeySpecException, SignatureVerificationFailedException {
+		if (transfers.size() != expectedSize) return false;
+		if (senderSignatures.size() != expectedSize) return false;
+
+		Set<byte[]> transferHashes = new HashSet<>();
+		for (int i = 0; i < expectedSize; i++) {
+			Transfer transfer = transfers.get(i);
+			byte[] senderSignature = senderSignatures.get(i).toByteArray();
+			if (!this.signatureManager.isTransferSignatureValid(publicKeyFromByteString(transfer.getSenderKey()), senderSignature, transfer)) return false;
+			byte[] transferHash = getTransferHash(transfer);
+			if (transferHashes.contains(transferHash)) return false;
+			transferHashes.add(transferHash);
+		}
+		return true;
+	}
+
+	public boolean isApprovedTransferListValid(List<Transfer> transfers, List<ByteString> senderSignatures, List<ByteString> receiverSignatures, int expectedSize)
+			throws NoSuchAlgorithmException, InvalidKeySpecException, SignatureVerificationFailedException {
+		if (transfers.size() != expectedSize) return false;
+		if (senderSignatures.size() != expectedSize) return false;
+		if (receiverSignatures.size() != expectedSize) return false;
+
+		Set<byte[]> transferHashes = new HashSet<>();
+		for (int i = 0; i < expectedSize; i++) {
+			Transfer transfer = transfers.get(i);
+			byte[] senderSignature = senderSignatures.get(i).toByteArray();
+			byte[] receiverSignature = receiverSignatures.get(i).toByteArray();
+			if (!this.signatureManager.isTransferSignatureValid(publicKeyFromByteString(transfer.getSenderKey()), senderSignature, transfer)) return false;
+			if (!this.signatureManager.isTransferSignatureValid(publicKeyFromByteString(transfer.getReceiverKey()), receiverSignature, transfer)) return false;
+			byte[] transferHash = getTransferHash(transfer);
+			if (transferHashes.contains(transferHash)) return false;
+			transferHashes.add(transferHash);
+		}
+		return true;
+	}
+
+	private byte[] getTransferHash(Transfer transfer) throws NoSuchAlgorithmException {
+		return MessageDigest.getInstance("SHA-256").digest(transfer.toByteArray());
 	}
 }

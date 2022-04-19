@@ -225,7 +225,7 @@ public class SQLiteDatabase {
 		}
 	}
 
-	public List<Transfer> getIncomingPendingTransfersOfAccount(ByteString publicKey) throws SQLException {
+	public TransfersRecord getIncomingPendingTransfersOfAccount(ByteString publicKey) throws SQLException {
 		try (Connection conn = getConnection()) {
 			String sql =    "SELECT * FROM transfers " +
 							"WHERE receiver_pubkey = ? " +
@@ -234,13 +234,13 @@ public class SQLiteDatabase {
 			try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 				stmt.setString(1, Base64.getEncoder().encodeToString(publicKey.toByteArray()));
 				try (ResultSet rs = stmt.executeQuery()) {
-					return TransferUtils.fromResultSet(rs);
+					return new TransfersRecord(rs);
 				}
 			}
 		}
 	}
 
-	public List<Transfer> getAllTransfersOfAccount(ByteString publicKey) throws SQLException {
+	public TransfersRecord getApprovedTransfersOfAccount(ByteString publicKey) throws SQLException {
 		try (Connection conn = getConnection()) {
 			String sql =    "SELECT * FROM transfers " +
 							"WHERE (sender_pubkey = ? OR receiver_pubkey = ?) " +
@@ -250,7 +250,7 @@ public class SQLiteDatabase {
 				stmt.setString(1, Base64.getEncoder().encodeToString(publicKey.toByteArray()));
 				stmt.setString(2, Base64.getEncoder().encodeToString(publicKey.toByteArray()));
 				try (ResultSet rs = stmt.executeQuery()) {
-					return TransferUtils.fromResultSet(rs);
+					return new TransfersRecord(rs);
 				}
 			}
 		}
@@ -268,7 +268,7 @@ public class SQLiteDatabase {
 				stmt.setString(2, Base64.getEncoder().encodeToString(senderPublicKey.toByteArray()));
 				stmt.setString(3, Base64.getEncoder().encodeToString(receiverPublicKey.toByteArray()));
 				try (ResultSet rs = stmt.executeQuery()) {
-					List<Transfer> results = TransferUtils.fromResultSet(rs);
+					List<Transfer> results = new TransfersRecord(rs).getTransfers();
 					if (results.isEmpty()) throw new TransferNotFoundException();
 					else return results.get(0);
 				}

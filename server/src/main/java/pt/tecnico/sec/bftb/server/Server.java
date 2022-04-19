@@ -10,7 +10,6 @@ import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.sql.SQLException;
-import java.util.List;
 
 public class Server {
 	private static final long TIMESTAMP_TOLERANCE = 5000;
@@ -70,33 +69,22 @@ public class Server {
 				listSizes.getApprovedSize(), listSizes.getWts(), sizesSignature);
 	}
 
-	public BalanceRecord readBalanceForWrite(ByteString publicKeyBS) throws AccountDoesNotExistException, SQLException {
+	public BalanceRecord readBalance(ByteString publicKeyBS) throws AccountDoesNotExistException, SQLException {
 		if (!db.checkAccountExists(publicKeyBS)) throw new AccountDoesNotExistException();
 		return db.readAccountBalanceRecord(publicKeyBS);
 	}
 
-	public ListSizesRecord readListSizesForWrite(ByteString publicKeyBS)
+	public ListSizesRecord readListSizes(ByteString publicKeyBS)
 			throws AccountDoesNotExistException, SQLException {
 		if (!db.checkAccountExists(publicKeyBS)) throw new AccountDoesNotExistException();
 		return db.readAccountListSizesRecord(publicKeyBS);
 	}
 
-	// Check Account (part 1):
-
-	public int getAccountBalance(ByteString publicKeyBS) throws AccountDoesNotExistException, SQLException {
-		if (!db.checkAccountExists(publicKeyBS)) throw new AccountDoesNotExistException();
-		return db.readAccountBalance(publicKeyBS);
-	}
-
-	// Check Account (part 2):
-
-	public List<Transfer> getPendingIncomingTransfers(ByteString publicKeyBS)
+	public TransfersRecord getPendingIncomingTransfers(ByteString publicKeyBS)
 			throws AccountDoesNotExistException, SQLException {
 		if (!db.checkAccountExists(publicKeyBS)) throw new AccountDoesNotExistException();
 		return db.getIncomingPendingTransfersOfAccount(publicKeyBS);
 	}
-
-	// Send Amount:
 
 	public void sendAmount(Transfer transfer, ByteString senderSignature, Balance newBalance, ByteString balanceSignature,
 			ListSizes receiverListSizes, ByteString receiverSizesSignature)
@@ -246,8 +234,8 @@ public class Server {
 		if (!db.checkPendingTransferExists(timestamp, senderKeyBS, receiverKeyBS, amount)) throw new TransferNotFoundException();
 	}
 
-	public List<Transfer> getApprovedTransfers(ByteString publicKey) throws AccountDoesNotExistException, SQLException {
+	public TransfersRecord getApprovedTransfers(ByteString publicKey) throws AccountDoesNotExistException, SQLException {
 		if (!db.checkAccountExists(publicKey)) throw new AccountDoesNotExistException();
-		return db.getAllTransfersOfAccount(publicKey);
+		return db.getApprovedTransfersOfAccount(publicKey);
 	}
 }
