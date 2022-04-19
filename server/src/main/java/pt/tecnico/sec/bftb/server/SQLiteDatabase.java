@@ -22,26 +22,26 @@ public class SQLiteDatabase {
 	private void initializeDatabase() throws SQLException {
 		try (Connection conn = getConnection()) {
 			try (Statement stmt = conn.createStatement()) {
-				String sql1 = "CREATE TABLE IF NOT EXISTS accounts(" +
-						"pubkey TEXT PRIMARY KEY, " +
-						"balance INTEGER NOT NULL, " +
-						"balance_wts INTEGER NOT NULL," +
-						"balance_signature TEXT NOT NULL," +
-						"pending_size INTEGER NOT NULL," +
-						"approved_size INTEGER NOT NULL," +
-						"sizes_wts INTEGER NOT NULL," +
-						"sizes_signature TEXT NOT NULL," +
-						"sizes_signer_pubkey TEXT NOT NULL)";
-				String sql2 = "CREATE TABLE IF NOT EXISTS transfers(" +
-						"timestamp INTEGER NOT NULL, " +
-						"sender_pubkey TEXT NOT NULL, " +
-						"receiver_pubkey TEXT NOT NULL, " +
-						"amount INTEGER NOT NULL, " +
-						"sender_signature TEXT NOT NULL, " +
-						"receiver_signature TEXT, " +
-						"FOREIGN KEY (sender_pubkey) REFERENCES accounts(pubkey), " +
-						"FOREIGN KEY (receiver_pubkey) REFERENCES accounts(pubkey), " +
-						"CONSTRAINT pk PRIMARY KEY(timestamp, sender_pubkey, receiver_pubkey))";
+				String sql1 =   "CREATE TABLE IF NOT EXISTS accounts(" +
+								"pubkey TEXT PRIMARY KEY, " +
+								"balance INTEGER NOT NULL, " +
+								"balance_wts INTEGER NOT NULL," +
+								"balance_signature TEXT NOT NULL," +
+								"pending_size INTEGER NOT NULL," +
+								"approved_size INTEGER NOT NULL," +
+								"sizes_wts INTEGER NOT NULL," +
+								"sizes_signature TEXT NOT NULL," +
+								"sizes_signer_pubkey TEXT NOT NULL)";
+				String sql2 =   "CREATE TABLE IF NOT EXISTS transfers(" +
+								"timestamp INTEGER NOT NULL, " +
+								"sender_pubkey TEXT NOT NULL, " +
+								"receiver_pubkey TEXT NOT NULL, " +
+								"amount INTEGER NOT NULL, " +
+								"sender_signature TEXT NOT NULL, " +
+								"receiver_signature TEXT, " +
+								"FOREIGN KEY (sender_pubkey) REFERENCES accounts(pubkey), " +
+								"FOREIGN KEY (receiver_pubkey) REFERENCES accounts(pubkey), " +
+								"CONSTRAINT pk PRIMARY KEY(timestamp, sender_pubkey, receiver_pubkey))";
 				stmt.execute(sql1);
 				stmt.execute(sql2);
 			}
@@ -128,7 +128,7 @@ public class SQLiteDatabase {
 	public ListSizesRecord readAccountListSizesRecord(ByteString publicKeyBS) throws SQLException {
 		try (Connection conn = getConnection()) {
 			String sql =    "SELECT * FROM accounts " +
-					"WHERE pubkey = ?";
+							"WHERE pubkey = ?";
 			try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 				stmt.setString(1, Base64.getEncoder().encodeToString(publicKeyBS.toByteArray()));
 				try (ResultSet rs = stmt.executeQuery()) {
@@ -143,13 +143,68 @@ public class SQLiteDatabase {
 		}
 	}
 
-	public void writeAccountBalance(ByteString publicKey, int balance) throws SQLException {
+	public void updateAccountBalance(ByteString accountPublicKey, int balance, int wts, ByteString signature) throws SQLException {
 		try (Connection conn = getConnection()) {
-			String sql =    "UPDATE accounts SET balance = ? " +
+			String sql =    "UPDATE accounts SET " +
+							"balance = ? " +
+							"AND balance_wts = ? " +
+							"AND balance_signature = ? " +
 							"WHERE pubkey = ?";
 			try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 				stmt.setInt(1, balance);
-				stmt.setString(2, Base64.getEncoder().encodeToString(publicKey.toByteArray()));
+				stmt.setInt(2, wts);
+				stmt.setString(3, Base64.getEncoder().encodeToString(signature.toByteArray()));
+				stmt.setString(4, Base64.getEncoder().encodeToString(accountPublicKey.toByteArray()));
+				stmt.executeUpdate();
+			}
+		}
+	}
+
+	public void updateAccountListSizes(ByteString accountPublicKey, int pendingSize, int approvedSize, int sizesWts,
+			ByteString sizesSignature, ByteString sizesSignerPublicKey) throws SQLException {
+		try (Connection conn = getConnection()) {
+			String sql =    "UPDATE accounts SET " +
+							"pending_size = ? " +
+							"AND approved_size = ? " +
+							"AND sizes_wts = ? " +
+							"AND sizes_signature = ? " +
+							"AND sizes_signer_pubkey = ? " +
+							"WHERE pubkey = ?";
+			try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+				stmt.setInt(1, pendingSize);
+				stmt.setInt(2, approvedSize);
+				stmt.setInt(3, sizesWts);
+				stmt.setString(4, Base64.getEncoder().encodeToString(sizesSignature.toByteArray()));
+				stmt.setString(5, Base64.getEncoder().encodeToString(sizesSignerPublicKey.toByteArray()));
+				stmt.setString(6, Base64.getEncoder().encodeToString(accountPublicKey.toByteArray()));
+				stmt.executeUpdate();
+			}
+		}
+	}
+
+	public void updateAccountAll(ByteString accountPublicKey, int balance, int balanceWts, ByteString balanceSignature,
+			int pendingSize, int approvedSize, int sizesWts, ByteString sizesSignature, ByteString sizesSignerPublicKey) throws SQLException {
+		try (Connection conn = getConnection()) {
+			String sql =    "UPDATE accounts SET " +
+							"balance = ? " +
+							"AND balance_wts = ? " +
+							"AND balance_signature " +
+							"AND pending_size = ? " +
+							"AND approved_size = ? " +
+							"AND sizes_wts = ? " +
+							"AND sizes_signature = ? " +
+							"AND sizes_signer_pubkey = ? " +
+							"WHERE pubkey = ?";
+			try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+				stmt.setInt(1, balance);
+				stmt.setInt(2, balanceWts);
+				stmt.setString(3, Base64.getEncoder().encodeToString(balanceSignature.toByteArray()));
+				stmt.setInt(4, pendingSize);
+				stmt.setInt(5, approvedSize);
+				stmt.setInt(6, sizesWts);
+				stmt.setString(7, Base64.getEncoder().encodeToString(sizesSignature.toByteArray()));
+				stmt.setString(8, Base64.getEncoder().encodeToString(sizesSignerPublicKey.toByteArray()));
+				stmt.setString(9, Base64.getEncoder().encodeToString(accountPublicKey.toByteArray()));
 				stmt.executeUpdate();
 			}
 		}

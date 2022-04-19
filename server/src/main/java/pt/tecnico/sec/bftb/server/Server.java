@@ -98,25 +98,26 @@ public class Server {
 
 	// Send Amount:
 
-	public void sendAmount(Transfer transfer, ByteString senderSignature, Balance newBalance, ByteString balanceSignature)
+	public void sendAmount(Transfer transfer, ByteString senderSignature, Balance newBalance, ByteString balanceSignature,
+			ListSizes receiverListSizes, ByteString receiverSizesSignature)
 			throws AccountDoesNotExistException, AmountTooLowException, BalanceTooLowException, SQLException,
 			InvalidTimestampException, InvalidKeySpecException,
 			SignatureVerificationFailedException, InvalidTransferSignatureException, InvalidNewBalanceException,
-			NoSuchAlgorithmException {
+			NoSuchAlgorithmException, InvalidNewListSizesException {
 		long timestamp = transfer.getTimestamp();
 		int amount = transfer.getAmount();
 		ByteString senderKeyBS = transfer.getSenderKey();
 		ByteString receiverKeyBS = transfer.getReceiverKey();
 
-		// TODO: Also check and update listSizes
-
 		verifySendAmount(timestamp, amount, senderKeyBS, receiverKeyBS);
 		verifyTransferSignature(senderKeyBS, transfer, senderSignature);
 		verifyNewBalance(senderKeyBS, newBalance, balanceSignature, -amount);
+		verifyNewListSizesNewPending(receiverKeyBS, receiverListSizes, receiverSizesSignature);
 
 		// TRANSACTION
 		db.insertTransfer(timestamp, senderKeyBS, receiverKeyBS, amount, senderSignature);
-		db.writeAccountBalance(senderKeyBS, db.readAccountBalance(senderKeyBS) - transfer.getAmount());
+		db.updateAccountBalance(senderKeyBS, newBalance.getValue(), newBalance.getWts(), balanceSignature);
+		db.updateAccountListSizes(receiverKeyBS, receiverListSizes.getPendingSize(), receiverListSizes.getApprovedSize(), receiverListSizes.getWts(), receiverSizesSignature, senderKeyBS);
 	}
 
 	private void verifyTransferSignature(ByteString publicKeyBS, Transfer transfer, ByteString signature)
@@ -142,9 +143,66 @@ public class Server {
 		if (newBalance.getWts() != balanceRecord.getBalance().getWts() + 1) {
 			throw new InvalidNewBalanceException("New balance timestamp does match expected timestamp");
 		}
-		PublicKey userPublicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(userPublicKeyBS.toByteArray()));
+		PublicKey userPublicKey = publicKeyFromByteString(userPublicKeyBS);
 		if (this.signatureManager.isBalanceSignatureValid(userPublicKey, signature.toByteArray(), newBalance)) {
 			throw new InvalidNewBalanceException("Balance signature does not match received balance");
+		}
+	}
+
+	private void verifyNewListSizesNewPending(ByteString publicKeyBS, ListSizes newListSizes, ByteString sizesSignature)
+			throws SignatureVerificationFailedException, SQLException,
+			NoSuchAlgorithmException, InvalidKeySpecException, InvalidNewListSizesException {
+		ListSizesRecord listSizesRecord = db.readAccountListSizesRecord(publicKeyBS);
+		if (newListSizes.getPendingSize() != listSizesRecord.getListSizes().getPendingSize() + 1) {
+			throw new InvalidNewListSizesException("New pending transfers list size value does not match expected value");
+		}
+		if (newListSizes.getApprovedSize() != listSizesRecord.getListSizes().getApprovedSize()) {
+			throw new InvalidNewListSizesException("New approved transfers list size value does not match expected value");
+		}
+		if (newListSizes.getWts() != listSizesRecord.getListSizes().getWts() + 1) {
+			throw new InvalidNewListSizesException("New list sizes timestamp does match expected timestamp");
+		}
+		PublicKey userPublicKey = publicKeyFromByteString(publicKeyBS);
+		if (this.signatureManager.isListSizesSignatureValid(userPublicKey, sizesSignature.toByteArray(), newListSizes)) {
+			throw new InvalidNewListSizesException("List sizes signature does not match received list sizes");
+		}
+	}
+
+	private void verifyNewListSizesNewApproved(ByteString publicKeyBS, ListSizes newListSizes, ByteString sizesSignature)
+			throws SignatureVerificationFailedException, SQLException,
+			NoSuchAlgorithmException, InvalidKeySpecException, InvalidNewListSizesException {
+		ListSizesRecord listSizesRecord = db.readAccountListSizesRecord(publicKeyBS);
+		if (newListSizes.getPendingSize() != listSizesRecord.getListSizes().getPendingSize()) {
+			throw new InvalidNewListSizesException("New pending transfers list size value does not match expected value");
+		}
+		if (newListSizes.getApprovedSize() != listSizesRecord.getListSizes().getApprovedSize() + 1) {
+			throw new InvalidNewListSizesException("New approved transfers list size value does not match expected value");
+		}
+		if (newListSizes.getWts() != listSizesRecord.getListSizes().getWts() + 1) {
+			throw new InvalidNewListSizesException("New list sizes timestamp does match expected timestamp");
+		}
+		PublicKey userPublicKey = publicKeyFromByteString(publicKeyBS);
+		if (this.signatureManager.isListSizesSignatureValid(userPublicKey, sizesSignature.toByteArray(), newListSizes)) {
+			throw new InvalidNewListSizesException("List sizes signature does not match received list sizes");
+		}
+	}
+
+	private void verifyNewListSizesPendingToApproved(ByteString publicKeyBS, ListSizes newListSizes, ByteString sizesSignature)
+			throws SignatureVerificationFailedException, SQLException,
+			NoSuchAlgorithmException, InvalidKeySpecException, InvalidNewListSizesException {
+		ListSizesRecord listSizesRecord = db.readAccountListSizesRecord(publicKeyBS);
+		if (newListSizes.getPendingSize() != listSizesRecord.getListSizes().getPendingSize() - 1) {
+			throw new InvalidNewListSizesException("New pending transfers list size value does not match expected value");
+		}
+		if (newListSizes.getApprovedSize() != listSizesRecord.getListSizes().getApprovedSize() + 1) {
+			throw new InvalidNewListSizesException("New pending transfers list size value does not match expected value");
+		}
+		if (newListSizes.getWts() != listSizesRecord.getListSizes().getWts() + 1) {
+			throw new InvalidNewListSizesException("New list sizes timestamp does match expected timestamp");
+		}
+		PublicKey userPublicKey = publicKeyFromByteString(publicKeyBS);
+		if (this.signatureManager.isListSizesSignatureValid(userPublicKey, sizesSignature.toByteArray(), newListSizes)) {
+			throw new InvalidNewListSizesException("List sizes signature does not match received list sizes");
 		}
 	}
 
@@ -159,23 +217,28 @@ public class Server {
 		if (amount >= db.readAccountBalance(senderKeyBS)) throw new BalanceTooLowException();
 	}
 
-	public void receiveAmount(Transfer transfer, ByteString receiverSignature, Balance balance, ByteString balanceSignature)
+	public void receiveAmount(Transfer transfer, ByteString receiverSignature, Balance balance, ByteString balanceSignature,
+			ListSizes senderListSizes, ByteString senderSizesSignature, ListSizes receiverListSizes, ByteString receiverSizesSignature)
 			throws TransferNotFoundException, SQLException, NoSuchAlgorithmException, InvalidKeySpecException,
-			InvalidNewBalanceException, SignatureVerificationFailedException, InvalidTransferSignatureException {
+			InvalidNewBalanceException, SignatureVerificationFailedException, InvalidTransferSignatureException,
+			InvalidNewListSizesException {
 		long timestamp = transfer.getTimestamp();
 		ByteString senderKeyBS = transfer.getSenderKey();
 		ByteString receiverKeyBS = transfer.getReceiverKey();
 		int amount = transfer.getAmount();
 
-		// TODO: Also check and update listSizes
-
 		verifyReceiveAmount(timestamp, senderKeyBS, receiverKeyBS, amount);
 		verifyTransferSignature(senderKeyBS, transfer, receiverSignature);
 		verifyNewBalance(senderKeyBS, balance, balanceSignature, +amount);
+		verifyNewListSizesNewApproved(senderKeyBS, senderListSizes, senderSizesSignature);
+		verifyNewListSizesPendingToApproved(receiverKeyBS, receiverListSizes, receiverSizesSignature);
 
 		// TRANSACTION
 		db.updateTransferToApproved(timestamp, senderKeyBS, receiverKeyBS, receiverSignature);
-		db.writeAccountBalance(receiverKeyBS, db.readAccountBalance(receiverKeyBS) + transfer.getAmount());
+		db.updateAccountAll(receiverKeyBS, balance.getValue(), balance.getWts(), balanceSignature, receiverListSizes.getPendingSize(),
+				receiverListSizes.getApprovedSize(), receiverListSizes.getWts(), receiverSizesSignature, receiverKeyBS);
+		db.updateAccountListSizes(senderKeyBS, senderListSizes.getPendingSize(), senderListSizes.getApprovedSize(), senderListSizes.getWts(),
+				senderSizesSignature, receiverKeyBS);
 	}
 
 	private void verifyReceiveAmount(long timestamp, ByteString senderKeyBS, ByteString receiverKeyBS, int amount)

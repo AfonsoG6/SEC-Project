@@ -144,11 +144,12 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			ByteString senderTransferSignature = content.getSenderTransferSignature();
 			Balance newBalance = content.getNewBalance();
 			ByteString balanceSignature = content.getBalanceSignature();
-			// TODO: Treat List sizes
+			ListSizes receiverListSizes = content.getReceiverListSizes();
+			ByteString receiverSizesSignature = content.getReceiverSizesSignature();
 			byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
 			if (!checkRequestSignature(newTransfer.getSenderKey(), request.getSignature(), content.toByteArray(), responseObserver)) return;
 			// Execute Request
-			server.sendAmount(newTransfer, senderTransferSignature, newBalance, balanceSignature);
+			server.sendAmount(newTransfer, senderTransferSignature, newBalance, balanceSignature, receiverListSizes, receiverSizesSignature);
 			// Build Signed Response
 			SignedSendAmountResponse.Builder signedBuilder = SignedSendAmountResponse.newBuilder();
 			long nonceToServer = getServerSignatureManager().decypherNonce(cypheredNonceToServer);
@@ -164,7 +165,8 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
 		}
 		catch (AmountTooLowException | AccountDoesNotExistException | BalanceTooLowException |
-		       InvalidTimestampException | InvalidTransferSignatureException | InvalidNewBalanceException e) {
+		       InvalidTimestampException | InvalidTransferSignatureException | InvalidNewBalanceException |
+		       InvalidNewListSizesException e) {
 			e.printStackTrace();
 			responseObserver.onError(INVALID_ARGUMENT.withDescription(e.getMessage()).asRuntimeException());
 		}
@@ -221,11 +223,14 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			ByteString receiverTransferSignature = content.getReceiverTransferSignature();
 			Balance newBalance = content.getNewBalance();
 			ByteString balanceSignature = content.getBalanceSignature();
-			// TODO: Treat List sizes
+			ListSizes senderListSizes = content.getSenderListSizes();
+			ByteString senderSizesSignature = content.getSenderSizesSignature();
+			ListSizes receiverListSizes = content.getReceiverListSizes();
+			ByteString receiverSizesSignature = content.getReceiverSizesSignature();
 			byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
 			if (!checkRequestSignature(transfer.getReceiverKey(), request.getSignature(), content.toByteArray(), responseObserver)) return;
 			// Execute Request
-			server.receiveAmount(transfer, receiverTransferSignature, newBalance, balanceSignature);
+			server.receiveAmount(transfer, receiverTransferSignature, newBalance, balanceSignature, senderListSizes, senderSizesSignature, receiverListSizes, receiverSizesSignature);
 			// Build Signed Response
 			SignedReceiveAmountResponse.Builder signedBuilder = SignedReceiveAmountResponse.newBuilder();
 			long nonceToServer = getServerSignatureManager().decypherNonce(cypheredNonceToServer);
@@ -240,7 +245,8 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			e.printStackTrace();
 			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
 		}
-		catch (TransferNotFoundException | InvalidNewBalanceException | InvalidTransferSignatureException e) {
+		catch (TransferNotFoundException | InvalidNewBalanceException | InvalidTransferSignatureException |
+		       InvalidNewListSizesException e) {
 			e.printStackTrace();
 			responseObserver.onError(INVALID_ARGUMENT.withDescription(e.getMessage()).asRuntimeException());
 		}
