@@ -148,7 +148,7 @@ public class Server {
 			throw new InvalidNewListSizesException("New approved transfers list size value does not match expected value");
 		}
 		if (newListSizes.getWts() != listSizesRecord.getListSizes().getWts() + 1) {
-			throw new InvalidNewListSizesException("New list sizes timestamp does match expected timestamp");
+			throw new InvalidNewListSizesException("New list sizes timestamp does not match expected timestamp");
 		}
 		PublicKey signerPublicKey = publicKeyFromByteString(signerPublicKeyBS);
 		if (!this.signatureManager.isListSizesSignatureValid(signerPublicKey, sizesSignature.toByteArray(), newListSizes)) {
@@ -167,7 +167,7 @@ public class Server {
 			throw new InvalidNewListSizesException("New approved transfers list size value does not match expected value");
 		}
 		if (newListSizes.getWts() != listSizesRecord.getListSizes().getWts() + 1) {
-			throw new InvalidNewListSizesException("New list sizes timestamp does match expected timestamp");
+			throw new InvalidNewListSizesException("New list sizes timestamp does not match expected timestamp");
 		}
 		PublicKey signerPublicKey = publicKeyFromByteString(signerPublicKeyBS);
 		if (!this.signatureManager.isListSizesSignatureValid(signerPublicKey, sizesSignature.toByteArray(), newListSizes)) {
@@ -186,7 +186,7 @@ public class Server {
 			throw new InvalidNewListSizesException("New pending transfers list size value does not match expected value");
 		}
 		if (newListSizes.getWts() != listSizesRecord.getListSizes().getWts() + 1) {
-			throw new InvalidNewListSizesException("New list sizes timestamp does match expected timestamp");
+			throw new InvalidNewListSizesException("New list sizes timestamp does not match expected timestamp");
 		}
 		PublicKey signerPublicKey = publicKeyFromByteString(signerPublicKeyBS);
 		if (!this.signatureManager.isListSizesSignatureValid(signerPublicKey, sizesSignature.toByteArray(), newListSizes)) {

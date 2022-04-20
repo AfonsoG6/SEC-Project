@@ -28,7 +28,7 @@ public class Client {
 	private static final String FULL_OPERATION_SUCCESSFUL = "Full Operation successful!";
 	private static final long DEADLINE_SEC = 10;    // Timeout deadline in seconds
 	private static final int INITIAL_BALANCE = 100; // Initial balance of an account (must be the same as in the server)
-	private static final long PUZZLE_SEARCH_RANGE = 1000;
+	private static final long PUZZLE_SEARCH_RANGE = 100000;
 	private final ConcurrentHashMap<Integer, ServerServiceBlockingStub> stubs;
 	private final SignatureManager signatureManager;
 	private final Map<Integer, PublicKey> serverPublicKeys;
@@ -193,8 +193,8 @@ public class Client {
 		for (int replicaID = 0; replicaID < numberOfServerReplicas; replicaID++) {
 			ServerServiceBlockingStub stub = stubs.get(replicaID);
 			try {
-				OpenAccountRequest request = buildOpenAccountRequest(nonceToServer, replicaID, initialBalance, balanceSignature, listSizes, sizesSignature);
 				var nonceToClient = requestNonce(stub);
+				OpenAccountRequest request = buildOpenAccountRequest(nonceToServer, replicaID, initialBalance, balanceSignature, listSizes, sizesSignature);
 				var response = openAccount(stub, request, nonceToClient);
 				byte[] serverSignature = response.getSignature().toByteArray();
 				if (this.signatureManager.isNonceSignatureValid(this.serverPublicKeys.get(replicaID), serverSignature)) {
@@ -244,8 +244,8 @@ public class Client {
 		for (int replicaID = 0; replicaID < numberOfServerReplicas; replicaID++) {
 			ServerServiceBlockingStub stub = stubs.get(replicaID);
 			try {
-				ReadForWriteRequest request = buildReadForWriteRequest(nonceToServer, replicaID, senderKey, receiverKey, isSender);
 				var nonceToClient = requestNonce(stub);
+				ReadForWriteRequest request = buildReadForWriteRequest(nonceToServer, replicaID, senderKey, receiverKey, isSender);
 				var response = readForWrite(stub, request, nonceToClient);
 				byte[] serverSignature = response.getSignature().toByteArray();
 				var content = response.getContent();
@@ -343,9 +343,9 @@ public class Client {
 		for (int replicaID = 0; replicaID < numberOfServerReplicas; replicaID++) {
 			ServerServiceBlockingStub stub = stubs.get(replicaID);
 			try {
+				var nonceToClient = requestNonce(stub);
 				SendAmountRequest request = buildSendAmountRequest(nonceToServer, replicaID, newTransfer, senderSignature,
 						newBalance, balanceSignature, newReceiverListSizes, receiverSizesSignature);
-				var nonceToClient = requestNonce(stub);
 				var response = sendAmount(stub, request, nonceToClient);
 				byte[] serverSignature = response.getSignature().toByteArray();
 				if (!this.signatureManager.isNonceSignatureValid(this.serverPublicKeys.get(replicaID), serverSignature))
@@ -447,8 +447,8 @@ public class Client {
 		for (int replicaID = 0; replicaID < numberOfServerReplicas; replicaID++) {
 			ServerServiceBlockingStub stub = stubs.get(replicaID);
 			try {
-				CheckAccountRequest request = buildCheckAccountRequest(nonceToServer, replicaID, findPuzzleSolution());
 				var nonceToClient = requestNonce(stub);
+				CheckAccountRequest request = buildCheckAccountRequest(nonceToServer, replicaID, findPuzzleSolution());
 				var response = checkAccount(stub, request, nonceToClient);
 				byte[] serverSignature = response.getSignature().toByteArray();
 				var content = response.getContent();
@@ -558,9 +558,9 @@ public class Client {
 		for (int replicaID = 0; replicaID < numberOfServerReplicas; replicaID++) {
 			ServerServiceBlockingStub stub = stubs.get(replicaID);
 			try {
+				var nonceToClient = requestNonce(stub);
 				ReceiveAmountRequest request = buildReceiveAmountRequest(nonceToServer, replicaID, targetTransfer, receiverSignature,
 						newBalance, balanceSignature, senderListSizes, senderSizesSignature, receiverListSizes, receiverSizesSignature);
-				var nonceToClient = requestNonce(stub);
 				var response = receiveAmount(stub, request, nonceToClient);
 				byte[] serverSignature = response.getSignature().toByteArray();
 				if (!this.signatureManager.isNonceSignatureValid(this.serverPublicKeys.get(replicaID), serverSignature))
@@ -611,8 +611,8 @@ public class Client {
 		for (int replicaID = 0; replicaID < numberOfServerReplicas; replicaID++) {
 			ServerServiceBlockingStub stub = stubs.get(replicaID);
 			try {
-				AuditRequest request = buildAuditRequest(nonceToServer, replicaID, findPuzzleSolution());
 				var nonceToClient = requestNonce(stub);
+				AuditRequest request = buildAuditRequest(nonceToServer, replicaID, findPuzzleSolution());
 				var response = audit(stub, request, nonceToClient);
 				byte[] serverSignature = response.getSignature().toByteArray();
 				var content = response.getContent();

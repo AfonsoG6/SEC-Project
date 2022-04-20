@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SignatureManager {
 	public static final String CIPHER_TRANSFORMATION = "RSA/ECB/PKCS1Padding";
 	private static final int PUZZLE_SALT_LENGTH = 10;
-	private static final long PUZZLE_SEARCH_RANGE = 1000;
+	private static final long PUZZLE_SEARCH_RANGE = 100000;
 	private final Random randomGenerator;
 	private final PrivateKey privateKey;
 	private final Map<PublicKey, Long> currentNonces;
@@ -164,7 +164,6 @@ public class SignatureManager {
 		randomGenerator.nextBytes(puzzleSalt);
 
 		byte[] puzzle = createPuzzle(puzzleSolution, puzzleSalt);
-
 		return Puzzle.newBuilder()
 				.setPuzzle(ByteString.copyFrom(puzzle))
 				.setPuzzleSalt(ByteString.copyFrom(puzzleSalt))
@@ -178,10 +177,11 @@ public class SignatureManager {
 
 	public boolean isPuzzleSolutionCorrect(ByteString peerPublicKeyBS, long solution)
 			throws AccountDoesNotHavePuzzleException {
-		Long currentSolution = currentPuzzleSolutions.get(peerPublicKeyBS);
-		if (currentSolution == null) {
+		if (!currentPuzzleSolutions.containsKey(peerPublicKeyBS)) {
 			throw new AccountDoesNotHavePuzzleException();
 		}
+		long currentSolution = currentPuzzleSolutions.get(peerPublicKeyBS);
+		System.out.println("Current solution: " + currentSolution + ", received solution: " + solution);
 		return currentSolution == solution;
 	}
 }
