@@ -28,7 +28,8 @@ message SignedOpenAccountResponse {
 message ReadForWriteRequest {
   bytes senderKey = 1;
   bytes receiverKey = 2;
-  bytes cypheredNonce = 3; // Challenge created by the CLIENT
+  bool isSender = 3;
+  bytes cypheredNonce = 4; // Challenge created by the CLIENT
 }
 
 message SignedReadForWriteRequest {

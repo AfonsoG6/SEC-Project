@@ -37,8 +37,14 @@ public class TransfersRecord {
 			transfers.add(builder.build());
 			ByteString senderSignature = ByteString.copyFrom(Base64.getDecoder().decode(rs.getString("sender_signature")));
 			senderSignatures.add(senderSignature);
-			ByteString receiverSignature = ByteString.copyFrom(Base64.getDecoder().decode(rs.getString("receiver_signature")));
-			receiverSignatures.add(receiverSignature);
+			String receiverSignatureB64 = rs.getString("receiver_signature");
+			if (receiverSignatureB64 != null) {
+				ByteString receiverSignature = ByteString.copyFrom(Base64.getDecoder().decode(rs.getString("receiver_signature")));
+				receiverSignatures.add(receiverSignature);
+			}
+			else {
+				receiverSignatures.add(null);
+			}
 		}
 	}
 

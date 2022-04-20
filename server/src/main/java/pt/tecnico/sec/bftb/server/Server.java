@@ -41,7 +41,7 @@ public class Server {
 			throw new InvalidNewBalanceException();
 		}
 		PublicKey userPublicKey = publicKeyFromByteString(userPublicKeyBS);
-		if (this.signatureManager.isBalanceSignatureValid(userPublicKey, signature.toByteArray(), initialBalance)) {
+		if (!this.signatureManager.isBalanceSignatureValid(userPublicKey, signature.toByteArray(), initialBalance)) {
 			throw new InvalidNewBalanceException("Balance signature does not match received balance");
 		}
 	}
@@ -53,7 +53,7 @@ public class Server {
 			throw new InvalidNewListSizesException();
 		}
 		PublicKey userPublicKey = publicKeyFromByteString(userPublicKeyBS);
-		if (this.signatureManager.isListSizesSignatureValid(userPublicKey, signature.toByteArray(), initialListSizes)) {
+		if (!this.signatureManager.isListSizesSignatureValid(userPublicKey, signature.toByteArray(), initialListSizes)) {
 			throw new InvalidNewListSizesException("ListSizes signature does not match received listSizes");
 		}
 	}
@@ -100,7 +100,7 @@ public class Server {
 		verifySendAmount(timestamp, amount, senderKeyBS, receiverKeyBS);
 		verifyTransferSignature(senderKeyBS, transfer, senderSignature);
 		verifyNewBalance(senderKeyBS, newBalance, balanceSignature, -amount);
-		verifyNewListSizesNewPending(receiverKeyBS, receiverListSizes, receiverSizesSignature);
+		verifyNewListSizesNewPending(receiverKeyBS, receiverListSizes, receiverSizesSignature, senderKeyBS);
 
 		// TRANSACTION
 		db.insertTransfer(timestamp, senderKeyBS, receiverKeyBS, amount, senderSignature);
@@ -112,7 +112,7 @@ public class Server {
 			throws SignatureVerificationFailedException, InvalidTransferSignatureException, NoSuchAlgorithmException,
 			InvalidKeySpecException {
 		PublicKey publicKey = publicKeyFromByteString(publicKeyBS);
-		if (this.signatureManager.isTransferSignatureValid(publicKey, signature.toByteArray(), transfer)) {
+		if (!this.signatureManager.isTransferSignatureValid(publicKey, signature.toByteArray(), transfer)) {
 			throw new InvalidTransferSignatureException();
 		}
 	}
@@ -132,12 +132,12 @@ public class Server {
 			throw new InvalidNewBalanceException("New balance timestamp does match expected timestamp");
 		}
 		PublicKey userPublicKey = publicKeyFromByteString(userPublicKeyBS);
-		if (this.signatureManager.isBalanceSignatureValid(userPublicKey, signature.toByteArray(), newBalance)) {
+		if (!this.signatureManager.isBalanceSignatureValid(userPublicKey, signature.toByteArray(), newBalance)) {
 			throw new InvalidNewBalanceException("Balance signature does not match received balance");
 		}
 	}
 
-	private void verifyNewListSizesNewPending(ByteString publicKeyBS, ListSizes newListSizes, ByteString sizesSignature)
+	private void verifyNewListSizesNewPending(ByteString publicKeyBS, ListSizes newListSizes, ByteString sizesSignature, ByteString signerPublicKeyBS)
 			throws SignatureVerificationFailedException, SQLException,
 			NoSuchAlgorithmException, InvalidKeySpecException, InvalidNewListSizesException {
 		ListSizesRecord listSizesRecord = db.readAccountListSizesRecord(publicKeyBS);
@@ -150,13 +150,13 @@ public class Server {
 		if (newListSizes.getWts() != listSizesRecord.getListSizes().getWts() + 1) {
 			throw new InvalidNewListSizesException("New list sizes timestamp does match expected timestamp");
 		}
-		PublicKey userPublicKey = publicKeyFromByteString(publicKeyBS);
-		if (this.signatureManager.isListSizesSignatureValid(userPublicKey, sizesSignature.toByteArray(), newListSizes)) {
+		PublicKey signerPublicKey = publicKeyFromByteString(signerPublicKeyBS);
+		if (!this.signatureManager.isListSizesSignatureValid(signerPublicKey, sizesSignature.toByteArray(), newListSizes)) {
 			throw new InvalidNewListSizesException("List sizes signature does not match received list sizes");
 		}
 	}
 
-	private void verifyNewListSizesNewApproved(ByteString publicKeyBS, ListSizes newListSizes, ByteString sizesSignature)
+	private void verifyNewListSizesNewApproved(ByteString publicKeyBS, ListSizes newListSizes, ByteString sizesSignature, ByteString signerPublicKeyBS)
 			throws SignatureVerificationFailedException, SQLException,
 			NoSuchAlgorithmException, InvalidKeySpecException, InvalidNewListSizesException {
 		ListSizesRecord listSizesRecord = db.readAccountListSizesRecord(publicKeyBS);
@@ -169,13 +169,13 @@ public class Server {
 		if (newListSizes.getWts() != listSizesRecord.getListSizes().getWts() + 1) {
 			throw new InvalidNewListSizesException("New list sizes timestamp does match expected timestamp");
 		}
-		PublicKey userPublicKey = publicKeyFromByteString(publicKeyBS);
-		if (this.signatureManager.isListSizesSignatureValid(userPublicKey, sizesSignature.toByteArray(), newListSizes)) {
+		PublicKey signerPublicKey = publicKeyFromByteString(signerPublicKeyBS);
+		if (!this.signatureManager.isListSizesSignatureValid(signerPublicKey, sizesSignature.toByteArray(), newListSizes)) {
 			throw new InvalidNewListSizesException("List sizes signature does not match received list sizes");
 		}
 	}
 
-	private void verifyNewListSizesPendingToApproved(ByteString publicKeyBS, ListSizes newListSizes, ByteString sizesSignature)
+	private void verifyNewListSizesPendingToApproved(ByteString publicKeyBS, ListSizes newListSizes, ByteString sizesSignature, ByteString signerPublicKeyBS)
 			throws SignatureVerificationFailedException, SQLException,
 			NoSuchAlgorithmException, InvalidKeySpecException, InvalidNewListSizesException {
 		ListSizesRecord listSizesRecord = db.readAccountListSizesRecord(publicKeyBS);
@@ -188,8 +188,8 @@ public class Server {
 		if (newListSizes.getWts() != listSizesRecord.getListSizes().getWts() + 1) {
 			throw new InvalidNewListSizesException("New list sizes timestamp does match expected timestamp");
 		}
-		PublicKey userPublicKey = publicKeyFromByteString(publicKeyBS);
-		if (this.signatureManager.isListSizesSignatureValid(userPublicKey, sizesSignature.toByteArray(), newListSizes)) {
+		PublicKey signerPublicKey = publicKeyFromByteString(signerPublicKeyBS);
+		if (!this.signatureManager.isListSizesSignatureValid(signerPublicKey, sizesSignature.toByteArray(), newListSizes)) {
 			throw new InvalidNewListSizesException("List sizes signature does not match received list sizes");
 		}
 	}
@@ -216,10 +216,10 @@ public class Server {
 		int amount = transfer.getAmount();
 
 		verifyReceiveAmount(timestamp, senderKeyBS, receiverKeyBS, amount);
-		verifyTransferSignature(senderKeyBS, transfer, receiverSignature);
-		verifyNewBalance(senderKeyBS, balance, balanceSignature, +amount);
-		verifyNewListSizesNewApproved(senderKeyBS, senderListSizes, senderSizesSignature);
-		verifyNewListSizesPendingToApproved(receiverKeyBS, receiverListSizes, receiverSizesSignature);
+		verifyTransferSignature(receiverKeyBS, transfer, receiverSignature);
+		verifyNewBalance(receiverKeyBS, balance, balanceSignature, +amount);
+		verifyNewListSizesNewApproved(senderKeyBS, senderListSizes, senderSizesSignature, receiverKeyBS);
+		verifyNewListSizesPendingToApproved(receiverKeyBS, receiverListSizes, receiverSizesSignature, receiverKeyBS);
 
 		// TRANSACTION
 		db.updateTransferToApproved(timestamp, senderKeyBS, receiverKeyBS, receiverSignature);

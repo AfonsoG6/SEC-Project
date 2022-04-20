@@ -94,10 +94,11 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			ReadForWriteRequest content = request.getContent();
 			ByteString senderKeyBS = content.getSenderKey();
 			ByteString receiverKeyBS = content.getReceiverKey();
+			boolean isSender = content.getIsSender();
 			byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
-			if (!checkRequestSignature(senderKeyBS, request.getSignature(), content.toByteArray(), responseObserver)) return;
+			if (!checkRequestSignature((isSender)?senderKeyBS:receiverKeyBS, request.getSignature(), content.toByteArray(), responseObserver)) return;
 			// Execute the request
-			BalanceRecord balanceRecord = server.readBalance(senderKeyBS);
+			BalanceRecord balanceRecord = server.readBalance((isSender)?senderKeyBS:receiverKeyBS);
 			ListSizesRecord senderListSizesRecord = server.readListSizes(senderKeyBS);
 			ListSizesRecord receiverListSizesRecord = server.readListSizes(receiverKeyBS);
 			// Build Response
@@ -115,7 +116,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			SignedReadForWriteResponse.Builder signedBuilder = SignedReadForWriteResponse.newBuilder();
 			signedBuilder.setContent(response);
 			long nonceToServer = getServerSignatureManager().decypherNonce(cypheredNonceToServer);
-			byte[] serverSignature = getServerSignatureManager().sign(nonceToServer);
+			byte[] serverSignature = getServerSignatureManager().sign(nonceToServer, response.toByteArray());
 			signedBuilder.setSignature(ByteString.copyFrom(serverSignature));
 			SignedReadForWriteResponse signedResponse = signedBuilder.build();
 			// Send Response

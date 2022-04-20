@@ -146,9 +146,9 @@ public class SQLiteDatabase {
 	public void updateAccountBalance(ByteString accountPublicKey, int balance, int wts, ByteString signature) throws SQLException {
 		try (Connection conn = getConnection()) {
 			String sql =    "UPDATE accounts SET " +
-							"balance = ? " +
-							"AND balance_wts = ? " +
-							"AND balance_signature = ? " +
+							"balance = ? ," +
+							"balance_wts = ? ," +
+							"balance_signature = ? " +
 							"WHERE pubkey = ?";
 			try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 				stmt.setInt(1, balance);
@@ -164,11 +164,11 @@ public class SQLiteDatabase {
 			ByteString sizesSignature, ByteString sizesSignerPublicKey) throws SQLException {
 		try (Connection conn = getConnection()) {
 			String sql =    "UPDATE accounts SET " +
-							"pending_size = ? " +
-							"AND approved_size = ? " +
-							"AND sizes_wts = ? " +
-							"AND sizes_signature = ? " +
-							"AND sizes_signer_pubkey = ? " +
+							"pending_size = ? ," +
+							"approved_size = ? ," +
+							"sizes_wts = ? ," +
+							"sizes_signature = ? ," +
+							"sizes_signer_pubkey = ? " +
 							"WHERE pubkey = ?";
 			try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 				stmt.setInt(1, pendingSize);
@@ -186,14 +186,14 @@ public class SQLiteDatabase {
 			int pendingSize, int approvedSize, int sizesWts, ByteString sizesSignature, ByteString sizesSignerPublicKey) throws SQLException {
 		try (Connection conn = getConnection()) {
 			String sql =    "UPDATE accounts SET " +
-							"balance = ? " +
-							"AND balance_wts = ? " +
-							"AND balance_signature " +
-							"AND pending_size = ? " +
-							"AND approved_size = ? " +
-							"AND sizes_wts = ? " +
-							"AND sizes_signature = ? " +
-							"AND sizes_signer_pubkey = ? " +
+							"balance = ? ," +
+							"balance_wts = ? ," +
+							"balance_signature = ? ," +
+							"pending_size = ? ," +
+							"approved_size = ? ," +
+							"sizes_wts = ? ," +
+							"sizes_signature = ? ," +
+							"sizes_signer_pubkey = ? " +
 							"WHERE pubkey = ?";
 			try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 				stmt.setInt(1, balance);
