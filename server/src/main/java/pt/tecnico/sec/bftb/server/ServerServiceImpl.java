@@ -184,6 +184,12 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			// Parse Request & Check its Validity
 			CheckAccountRequest content = request.getContent();
 			ByteString publicKeyBS = content.getPublicKey();
+			// Check if the puzzle solution is correct as soon as possible to avoid unnecessary computation
+			long puzzleSolution = content.getPuzzleSolution();
+			if (!getServerSignatureManager().isPuzzleSolutionCorrect(publicKeyBS, puzzleSolution)) {
+				responseObserver.onError(INVALID_ARGUMENT.withDescription("Puzzle solution is incorrect").asRuntimeException());
+				return;
+			}
 			byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
 			if (!checkRequestSignature(publicKeyBS, request.getSignature(), content.toByteArray(), responseObserver)) return;
 			// Execute the request
@@ -218,7 +224,8 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			responseObserver.onNext(signedResponse);
 			responseObserver.onCompleted();
 		}
-		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException | SQLException e) {
+		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException |
+		       SignatureVerificationFailedException | SQLException | AccountDoesNotHavePuzzleException e) {
 			e.printStackTrace();
 			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
 		}
@@ -280,6 +287,12 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			// Parse Request & Check its Validity
 			AuditRequest content = request.getContent();
 			ByteString publicKeyBS = content.getPublicKey();
+			// Check if the puzzle solution is correct as soon as possible to avoid unnecessary computation
+			long puzzleSolution = content.getPuzzleSolution();
+			if (!getServerSignatureManager().isPuzzleSolutionCorrect(publicKeyBS, puzzleSolution)) {
+				responseObserver.onError(INVALID_ARGUMENT.withDescription("Puzzle solution is incorrect").asRuntimeException());
+				return;
+			}
 			byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
 			if (!checkRequestSignature(publicKeyBS, request.getSignature(), content.toByteArray(), responseObserver)) return;
 			// Execute the request
@@ -311,7 +324,9 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			responseObserver.onNext(signedResponse);
 			responseObserver.onCompleted();
 		}
-		catch (AccountDoesNotExistException | CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException | SQLException e) {
+		catch (AccountDoesNotExistException | CypherFailedException | InvalidKeySpecException |
+		       NoSuchAlgorithmException | SignatureVerificationFailedException | SQLException |
+		       AccountDoesNotHavePuzzleException e) {
 			e.printStackTrace();
 			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
 		}
@@ -329,9 +344,11 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBS.toByteArray()));
 			// Execute the request
 			byte[] nonce = getServerSignatureManager().generateCypheredNonce(publicKey);
+			Puzzle puzzle = getServerSignatureManager().generatePuzzle(publicKeyBS);
 			// Build Response
 			GetNonceResponse.Builder builder = GetNonceResponse.newBuilder();
 			builder.setCypheredNonce(ByteString.copyFrom(nonce));
+			builder.setPuzzle(puzzle);
 			GetNonceResponse response = builder.build();
 			// Send Response
 			responseObserver.onNext(response);

@@ -81,6 +81,7 @@ message SignedSendAmountResponse {
 message CheckAccountRequest {
   bytes publicKey = 1;
   bytes cypheredNonce = 2; // Challenge created by the CLIENT
+  int64 puzzleSolution = 3;
 }
 
 message SignedCheckAccountRequest {
@@ -133,6 +134,7 @@ message SignedReceiveAmountResponse {
 message AuditRequest {
   bytes publicKey = 1;
   bytes cypheredNonce = 2; // Challenge created by the CLIENT
+  int64 puzzleSolution = 3;
 }
 
 message SignedAuditRequest {
@@ -162,6 +164,7 @@ message GetNonceRequest {
 
 message GetNonceResponse {
   bytes cypheredNonce = 1; // Challenge created by the SERVER
+  Puzzle puzzle = 2;
 }
 
 //--------------------------------------------Data Structures-----------------------------------------------------------
@@ -182,6 +185,11 @@ message ListSizes {
   int32 pendingSize = 1;
   int32 approvedSize = 2;
   int32 wts = 3;
+}
+
+message Puzzle {
+  bytes puzzle = 1;
+  bytes puzzleSalt = 2;
 }
 
 //--------------------------------------------Service-------------------------------------------------------------------

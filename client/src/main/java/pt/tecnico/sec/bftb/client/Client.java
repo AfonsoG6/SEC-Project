@@ -10,6 +10,7 @@ import pt.tecnico.sec.bftb.grpc.Server.*;
 import pt.tecnico.sec.bftb.grpc.ServerServiceGrpc;
 import pt.tecnico.sec.bftb.grpc.ServerServiceGrpc.*;
 
+import java.nio.ByteBuffer;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
@@ -27,6 +28,7 @@ public class Client {
 	private static final String FULL_OPERATION_SUCCESSFUL = "Full Operation successful!";
 	private static final long DEADLINE_SEC = 10;    // Timeout deadline in seconds
 	private static final int INITIAL_BALANCE = 100; // Initial balance of an account (must be the same as in the server)
+	private static final long PUZZLE_SEARCH_RANGE = 1000;
 	private final ConcurrentHashMap<Integer, ServerServiceBlockingStub> stubs;
 	private final SignatureManager signatureManager;
 	private final Map<Integer, PublicKey> serverPublicKeys;
@@ -35,6 +37,7 @@ public class Client {
 	private List<Transfer> lastCheckAccountTransfers = null;
 	private final int faultsToTolerate;
 	private final int numberOfServerReplicas;
+	private Puzzle currentPuzzle = null;
 	private final List<GeneratedMessageV3> debugRequestHistory = new LinkedList<>();
 
 	public Client(String serverHostname, int serverBasePort, int faultsToTolerate)
@@ -86,6 +89,7 @@ public class Client {
 			debugRequestHistory.add(request);
 			GetNonceResponse response = stub.getNonce(request);
 			byte[] cypheredNonce = response.getCypheredNonce().toByteArray();
+			currentPuzzle = response.getPuzzle();
 			return signatureManager.decypherNonce(cypheredNonce);
 		}
 		catch (StatusRuntimeException e) {
@@ -109,6 +113,19 @@ public class Client {
 			System.out.println(ERROR_PREFIX + e.getMessage());
 			System.out.println(OPERATION_FAILED);
 		}
+	}
+
+	public long findPuzzleSolution()
+			throws NoCurrentPuzzleException, NoSuchAlgorithmException, NoPuzzleSolutionFoundException {
+		if (currentPuzzle == null) throw new NoCurrentPuzzleException();
+		byte[] puzzle = currentPuzzle.getPuzzle().toByteArray();
+		byte[] salt = currentPuzzle.getPuzzleSalt().toByteArray();
+		for (long i = 0; i < PUZZLE_SEARCH_RANGE; i++) {
+			byte[] rawPuzzle = ByteBuffer.allocate(Long.BYTES + salt.length).putLong(i).put(salt).array();
+			byte[] attempt = MessageDigest.getInstance("SHA-256").digest(rawPuzzle);
+			if (Arrays.equals(puzzle, attempt)) return i;
+		}
+		throw new NoPuzzleSolutionFoundException();
 	}
 
 	private PublicKey publicKeyFromByteString(ByteString publicKeyBS) throws NoSuchAlgorithmException, InvalidKeySpecException {
@@ -401,11 +418,12 @@ public class Client {
 		return builder.toString();
 	}
 
-	public CheckAccountRequest buildCheckAccountRequest(long nonceToServer, int replicaID) throws CypherFailedException {
+	public CheckAccountRequest buildCheckAccountRequest(long nonceToServer, int replicaID, long puzzleSolution) throws CypherFailedException {
 		ByteString cypheredNonceToServer = getCypheredNonceToServer(nonceToServer, replicaID);
 		CheckAccountRequest.Builder builder = CheckAccountRequest.newBuilder();
 		builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
 		builder.setCypheredNonce(cypheredNonceToServer);
+		builder.setPuzzleSolution(puzzleSolution);
 		CheckAccountRequest content = builder.build();
 		debugRequestHistory.add(content);
 		return content;
@@ -429,7 +447,7 @@ public class Client {
 		for (int replicaID = 0; replicaID < numberOfServerReplicas; replicaID++) {
 			ServerServiceBlockingStub stub = stubs.get(replicaID);
 			try {
-				CheckAccountRequest request = buildCheckAccountRequest(nonceToServer, replicaID);
+				CheckAccountRequest request = buildCheckAccountRequest(nonceToServer, replicaID, findPuzzleSolution());
 				var nonceToClient = requestNonce(stub);
 				var response = checkAccount(stub, request, nonceToClient);
 				byte[] serverSignature = response.getSignature().toByteArray();
@@ -439,8 +457,7 @@ public class Client {
 				readList.add(content);
 				System.out.println(OPERATION_SUCCESSFUL);
 			}
-			catch (StatusRuntimeException | NonceRequestFailedException | CypherFailedException |
-			       SignatureVerificationFailedException | InvalidSignatureException e) {
+			catch (Exception e) {
 				handleException(e);
 			}
 		}
@@ -566,11 +583,12 @@ public class Client {
 	}
 
 	// Audit
-	public AuditRequest buildAuditRequest(long nonceToServer, int replicaID) throws CypherFailedException {
+	public AuditRequest buildAuditRequest(long nonceToServer, int replicaID, long puzzleSolution) throws CypherFailedException {
 		ByteString cypheredNonceToServer = getCypheredNonceToServer(nonceToServer, replicaID);
 		AuditRequest.Builder builder = AuditRequest.newBuilder();
 		builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
 		builder.setCypheredNonce(cypheredNonceToServer);
+		builder.setPuzzleSolution(puzzleSolution);
 		AuditRequest content = builder.build();
 		debugRequestHistory.add(content);
 		return content;
@@ -593,7 +611,7 @@ public class Client {
 		for (int replicaID = 0; replicaID < numberOfServerReplicas; replicaID++) {
 			ServerServiceBlockingStub stub = stubs.get(replicaID);
 			try {
-				AuditRequest request = buildAuditRequest(nonceToServer, replicaID);
+				AuditRequest request = buildAuditRequest(nonceToServer, replicaID, findPuzzleSolution());
 				var nonceToClient = requestNonce(stub);
 				var response = audit(stub, request, nonceToClient);
 				byte[] serverSignature = response.getSignature().toByteArray();

@@ -1,6 +1,8 @@
 package pt.tecnico.sec.bftb.server;
 
+import com.google.protobuf.ByteString;
 import pt.tecnico.sec.bftb.grpc.Server.*;
+import pt.tecnico.sec.bftb.server.exceptions.AccountDoesNotHavePuzzleException;
 import pt.tecnico.sec.bftb.server.exceptions.CypherFailedException;
 import pt.tecnico.sec.bftb.server.exceptions.PrivateKeyLoadingFailedException;
 import pt.tecnico.sec.bftb.server.exceptions.SignatureVerificationFailedException;
@@ -19,15 +21,19 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class SignatureManager {
 	public static final String CIPHER_TRANSFORMATION = "RSA/ECB/PKCS1Padding";
+	private static final int PUZZLE_SALT_LENGTH = 10;
+	private static final long PUZZLE_SEARCH_RANGE = 1000;
 	private final Random randomGenerator;
 	private final PrivateKey privateKey;
 	private final Map<PublicKey, Long> currentNonces;
+	private final Map<ByteString, Long> currentPuzzleSolutions;
 
 
 	public SignatureManager(int replicaID) throws PrivateKeyLoadingFailedException {
 		this.randomGenerator = new SecureRandom();
 		this.privateKey = Resources.getPrivateKey(replicaID);
 		this.currentNonces = new ConcurrentHashMap<>();
+		this.currentPuzzleSolutions = new ConcurrentHashMap<>();
 	}
 
 	public byte[] cypherNonce(PublicKey peerPublicKey, long nonce) throws CypherFailedException {
@@ -145,5 +151,37 @@ public class SignatureManager {
 
 	public byte[] sign(long nonce) throws CypherFailedException {
 		return sign(nonce, new byte[0]);
+	}
+
+	public Puzzle generatePuzzle(ByteString peerPublicKeyBS) throws NoSuchAlgorithmException {
+		// Remove old nonce if it exists
+		currentPuzzleSolutions.remove(peerPublicKeyBS);
+		// Generate new nonce, store it and return it
+		long puzzleSolution = randomGenerator.nextLong(0, PUZZLE_SEARCH_RANGE);
+		currentPuzzleSolutions.put(peerPublicKeyBS, puzzleSolution);
+
+		byte[] puzzleSalt = new byte[PUZZLE_SALT_LENGTH];
+		randomGenerator.nextBytes(puzzleSalt);
+
+		byte[] puzzle = createPuzzle(puzzleSolution, puzzleSalt);
+
+		return Puzzle.newBuilder()
+				.setPuzzle(ByteString.copyFrom(puzzle))
+				.setPuzzleSalt(ByteString.copyFrom(puzzleSalt))
+				.build();
+	}
+
+	public byte[] createPuzzle(long solution, byte[] salt) throws NoSuchAlgorithmException {
+		byte[] rawPuzzle = ByteBuffer.allocate(Long.BYTES + salt.length).putLong(solution).put(salt).array();
+		return MessageDigest.getInstance("SHA-256").digest(rawPuzzle);
+	}
+
+	public boolean isPuzzleSolutionCorrect(ByteString peerPublicKeyBS, long solution)
+			throws AccountDoesNotHavePuzzleException {
+		Long currentSolution = currentPuzzleSolutions.get(peerPublicKeyBS);
+		if (currentSolution == null) {
+			throw new AccountDoesNotHavePuzzleException();
+		}
+		return currentSolution == solution;
 	}
 }
