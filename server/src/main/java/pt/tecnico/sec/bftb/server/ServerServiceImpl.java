@@ -387,21 +387,26 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			if (request.getBroadcastType() == 0) {
 				//if (!checkRequestSignature(publicKeyBS, request.SignedRequest.getSignature, content.toByteArray(), responseObserver)) return;
 				if (!server.requestIdentifiers.get(request.getReplicaId()).get(request.getSequenceNumber()).hasEchoed() ) {
-					//Enviar echoes  server.send echoes
+					server.requestIdentifiers.get(request.getReplicaId()).get(request.getSequenceNumber()).receiveEcho(String.valueOf(server.replicaID), faultsToTolerate);
 					server.requestIdentifiers.get(request.getReplicaId()).get(request.getSequenceNumber()).changeEchoed();
-				}
-			}
-			//Send Ready if number of received Echoes reaches threshold ( N+F/2 )
-			else if (request.getBroadcastType() == 1) {
-
-				if (server.requestIdentifiers.get(request.getReplicaId()).get(request.getSequenceNumber()).receiveEcho(request.getSenderId(), this.faultsToTolerate) ) {
 					server.sendEchoes(request.getWrappedRequest(), request.getReplicaId(), request.getSequenceNumber());
 				}
 			}
-			//Send Ready if number of received Readies reaches threshold (F) or send Deliver if it reaches another threshold (2 * F)
+			//Send Ready if number of received Echoes reaches threshold ( N+F/2 +1)
+			else if (request.getBroadcastType() == 1) {
+
+				if (server.requestIdentifiers.get(request.getReplicaId()).get(request.getSequenceNumber()).receiveEcho(request.getSenderId(), this.faultsToTolerate) ) {
+					server.requestIdentifiers.get(request.getReplicaId()).get(request.getSequenceNumber()).receiveReady(String.valueOf(server.replicaID), faultsToTolerate);
+
+					server.sendReadies(request.getWrappedRequest(), request.getReplicaId(), request.getSequenceNumber());
+				}
+			}
+			//Send Ready if number of received Readies reaches threshold (F+1) or send Deliver if it reaches another threshold (2*F +1)
 			else if (request.getBroadcastType() == 2) {
 				int rcvReadyResult = server.requestIdentifiers.get(request.getReplicaId()).get(request.getSequenceNumber()).receiveReady(request.getSenderId(), this.faultsToTolerate);
 				if (rcvReadyResult == 1) {
+					server.requestIdentifiers.get(request.getReplicaId()).get(request.getSequenceNumber()).receiveReady(String.valueOf(server.replicaID), faultsToTolerate);
+
 					server.sendReadies(request.getWrappedRequest(), request.getReplicaId(), request.getSequenceNumber());
 				}
 				else if (rcvReadyResult == 2) {
@@ -461,7 +466,7 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 	}
 
 	public void sendDelivery(BroadcastRequest payload, String ownerRepID, String sqcNumber, StreamObserver<?> responseObserver) {
-		//MISSING EXECUTION receiveAmount(SignedReceiveAmountRequest request)
+
 
 		if (isSignedReceiveAmountRequest(payload) != null) {
 			SignedReceiveAmountRequest request = isSignedReceiveAmountRequest(payload);
