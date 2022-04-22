@@ -51,15 +51,21 @@ mvn clean install -DskipTests -pl <module>
 
 ### Running
 
+***Note:*** To use a different **f** value from the default value of **1**, you must run the script `cert_gen.sh` to generate the certificates for the necessary number of replicas.
+
+You must also add `-Df=<f>` to the end of all the following `exec:java` commands.
+
 #### Running the server
 
-To run the server, open a terminal and type:
+To run the server with the default configuration, open a terminal and type:
 
 ```shell
 mvn exec:java -pl server
 ```
 
 You may specify the port number to use, by using the `-Dsvport=<port>` option.
+
+To run multiple replicas of the server, you must use the `-Dn=<number>` option. Where number must be a number between **0 and 3f**.
 
 #### Running the client
 
@@ -76,13 +82,7 @@ options.
 
 ### Running the tests
 
-To run the existing tests, first you must run the server:
-
-```shell
-mvn exec:java -pl server
-```
-
-Then, open another terminal and type:
+To run the included demo, you must first run the server replicas, and then open a terminal and type:
 
 ```shell
 mvn verify
@@ -90,125 +90,10 @@ mvn verify
 
 ### Running the demo
 
-To run the included demo, you must first run the server:
-
-```shell
-mvn exec:java -pl server
-```
-
-Then, open another terminal and type:
+To run the included demo, you must first run the server replicas, and then open a terminal and type:
 
 ```shell
 mvn exec:java -pl client -Dinputfile="demo.txt"
-```
-
-The following output should be displayed:
-
-```
---------------------------------------------------------------------------------
-> chuser afonso
-User changed to 'afonso'
---------------------------------------------------------------------------------
-> open
-Operation successful!
---------------------------------------------------------------------------------
-> check
-Operation successful!
-Balance: 100
-Pending Transfers:
-
---------------------------------------------------------------------------------
-> audit
-Operation successful!
-Transaction History:
-
---------------------------------------------------------------------------------
-> chuser manuel
-User changed to 'manuel'
---------------------------------------------------------------------------------
-> open
-Operation successful!
---------------------------------------------------------------------------------
-> check
-Operation successful!
-Balance: 100
-Pending Transfers:
-
---------------------------------------------------------------------------------
-> audit
-Operation successful!
-Transaction History:
-
---------------------------------------------------------------------------------
-> send afonso 10
-Operation successful!
---------------------------------------------------------------------------------
-> audit
-Operation successful!
-Transaction History:
-OUTGOING TRANSFER no.0: [Pending] $ 10 from MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6aODKvT7Alv5DhktdrgWIfsAQrwrTEPMkvggP7aYPiP2
-p0DSC06I0tn6YHtr0xbB/pPXoSJv785wID5e/7mU96R69UUnbLvc5fRWVcdMP23jrECqJxSmVMYfmD9ag2E9cVkbgwTnWwIpSKg0Ie1hqroDqMwqBFlKjWizgcp2qzTp4xZh
-fOoxd98OacuRDEArgaH6uNUKDIc8Ef5JWzB/o443ZzF5TCl2mWejHiRQwbtm54BIZx5FF50ml0iLtYGXXqW8D4MxSs2L9zWy1Ydow9ep85DB+vNLp7ujd8Ta4QhmnS6y1S8d
-JUoe1ZRETEzjMRsApHP+c5UAcpIGb84YlwIDAQAB to MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6aODKvT7Alv5DhktdrgWIfsAQrwrTEPMkvggP7aYPiP2
-p0DSC06I0tn6YHtr0xbB/pPXoSJv785wID5e/7mU96R69UUnbLvc5fRWVcdMP23jrECqJxSmVMYfmD9ag2E9cVkbgwTnWwIpSKg0Ie1hqroDqMwqBFlKjWizgcp2qzTp4xZh
-fOoxd98OacuRDEArgaH6uNUKDIc8Ef5JWzB/o443ZzF5TCl2mWejHiRQwbtm54BIZx5FF50ml0iLtYGXXqW8D4MxSs2L9zWy1Ydow9ep85DB+vNLp7ujd8Ta4QhmnS6y1S8d
-JUoe1ZRETEzjMRsApHP+c5UAcpIGb84YlwIDAQAB
-
---------------------------------------------------------------------------------
-> chuser afonso
-User changed to 'afonso'
---------------------------------------------------------------------------------
-> check
-Operation successful!
-Balance: 100
-Pending Transfers:
-INCOMING TRANSFER no.0: [Pending] $ 10 from MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6aODKvT7Alv5DhktdrgWIfsAQrwrTEPMkvggP7aYPiP2
-p0DSC06I0tn6YHtr0xbB/pPXoSJv785wID5e/7mU96R69UUnbLvc5fRWVcdMP23jrECqJxSmVMYfmD9ag2E9cVkbgwTnWwIpSKg0Ie1hqroDqMwqBFlKjWizgcp2qzTp4xZh
-fOoxd98OacuRDEArgaH6uNUKDIc8Ef5JWzB/o443ZzF5TCl2mWejHiRQwbtm54BIZx5FF50ml0iLtYGXXqW8D4MxSs2L9zWy1Ydow9ep85DB+vNLp7ujd8Ta4QhmnS6y1S8d
-JUoe1ZRETEzjMRsApHP+c5UAcpIGb84YlwIDAQAB to MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6aODKvT7Alv5DhktdrgWIfsAQrwrTEPMkvggP7aYPiP2
-p0DSC06I0tn6YHtr0xbB/pPXoSJv785wID5e/7mU96R69UUnbLvc5fRWVcdMP23jrECqJxSmVMYfmD9ag2E9cVkbgwTnWwIpSKg0Ie1hqroDqMwqBFlKjWizgcp2qzTp4xZh
-fOoxd98OacuRDEArgaH6uNUKDIc8Ef5JWzB/o443ZzF5TCl2mWejHiRQwbtm54BIZx5FF50ml0iLtYGXXqW8D4MxSs2L9zWy1Ydow9ep85DB+vNLp7ujd8Ta4QhmnS6y1S8d
-JUoe1ZRETEzjMRsApHP+c5UAcpIGb84YlwIDAQAB
-
---------------------------------------------------------------------------------
-> recv
-Operation successful!
---------------------------------------------------------------------------------
-> check
-Operation successful!
-Balance: 110
-Pending Transfers:
-
---------------------------------------------------------------------------------
-> audit
-Operation successful!
-Transaction History:
-INCOMING TRANSFER no.0: [Approved] $ 10 from MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6aODKvT7Alv5DhktdrgWIfsAQrwrTEPMkvggP7aYPiP
-2p0DSC06I0tn6YHtr0xbB/pPXoSJv785wID5e/7mU96R69UUnbLvc5fRWVcdMP23jrECqJxSmVMYfmD9ag2E9cVkbgwTnWwIpSKg0Ie1hqroDqMwqBFlKjWizgcp2qzTp4xZ
-hfOoxd98OacuRDEArgaH6uNUKDIc8Ef5JWzB/o443ZzF5TCl2mWejHiRQwbtm54BIZx5FF50ml0iLtYGXXqW8D4MxSs2L9zWy1Ydow9ep85DB+vNLp7ujd8Ta4QhmnS6y1S8
-dJUoe1ZRETEzjMRsApHP+c5UAcpIGb84YlwIDAQAB to MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6aODKvT7Alv5DhktdrgWIfsAQrwrTEPMkvggP7aYPiP
-2p0DSC06I0tn6YHtr0xbB/pPXoSJv785wID5e/7mU96R69UUnbLvc5fRWVcdMP23jrECqJxSmVMYfmD9ag2E9cVkbgwTnWwIpSKg0Ie1hqroDqMwqBFlKjWizgcp2qzTp4xZ
-hfOoxd98OacuRDEArgaH6uNUKDIc8Ef5JWzB/o443ZzF5TCl2mWejHiRQwbtm54BIZx5FF50ml0iLtYGXXqW8D4MxSs2L9zWy1Ydow9ep85DB+vNLp7ujd8Ta4QhmnS6y1S8
-dJUoe1ZRETEzjMRsApHP+c5UAcpIGb84YlwIDAQAB
-
---------------------------------------------------------------------------------
-> chuser manuel
-User changed to 'manuel'
---------------------------------------------------------------------------------
-> audit
-Operation successful!
-Transaction History:
-OUTGOING TRANSFER no.0: [Approved] $ 10 from MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6aODKvT7Alv5DhktdrgWIfsAQrwrTEPMkvggP7aYPiP
-2p0DSC06I0tn6YHtr0xbB/pPXoSJv785wID5e/7mU96R69UUnbLvc5fRWVcdMP23jrECqJxSmVMYfmD9ag2E9cVkbgwTnWwIpSKg0Ie1hqroDqMwqBFlKjWizgcp2qzTp4xZ
-hfOoxd98OacuRDEArgaH6uNUKDIc8Ef5JWzB/o443ZzF5TCl2mWejHiRQwbtm54BIZx5FF50ml0iLtYGXXqW8D4MxSs2L9zWy1Ydow9ep85DB+vNLp7ujd8Ta4QhmnS6y1S8
-dJUoe1ZRETEzjMRsApHP+c5UAcpIGb84YlwIDAQAB to MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6aODKvT7Alv5DhktdrgWIfsAQrwrTEPMkvggP7aYPiP
-2p0DSC06I0tn6YHtr0xbB/pPXoSJv785wID5e/7mU96R69UUnbLvc5fRWVcdMP23jrECqJxSmVMYfmD9ag2E9cVkbgwTnWwIpSKg0Ie1hqroDqMwqBFlKjWizgcp2qzTp4xZ
-hfOoxd98OacuRDEArgaH6uNUKDIc8Ef5JWzB/o443ZzF5TCl2mWejHiRQwbtm54BIZx5FF50ml0iLtYGXXqW8D4MxSs2L9zWy1Ydow9ep85DB+vNLp7ujd8Ta4QhmnS6y1S8
-dJUoe1ZRETEzjMRsApHP+c5UAcpIGb84YlwIDAQAB
-
---------------------------------------------------------------------------------
-> exit
---------------------------------------------------------------------------------
 ```
 
 ## Built With
