@@ -1,6 +1,7 @@
 package pt.tecnico.sec.bftb.server;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.Context;
 import io.grpc.stub.StreamObserver;
 import pt.tecnico.sec.bftb.server.exceptions.*;
@@ -13,7 +14,10 @@ import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.*;
 
 import static io.grpc.Status.*;
 
@@ -22,9 +26,10 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 	public static final String INVALID_SIGNATURE = "Invalid signature";
 	private static final String DEADLINE_EXCEEDED_DESC = "Timed out!";
 	private final Server server;
+	private int faultsToTolerate;
 
-	public ServerServiceImpl(int replicaID) throws ServerInitializationFailedException {
-		this.server = new Server(replicaID);
+	public ServerServiceImpl(int replicaID, int faultsToTolerate, String serverHostname, int serverBasePort) throws ServerInitializationFailedException {
+		this.server = new Server(replicaID, faultsToTolerate, serverHostname, serverBasePort);
 	}
 
 	SignatureManager getServerSignatureManager() {
@@ -358,4 +363,167 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
 		}
 	}
+
+	@Override
+	public void sendBroadcast(SignedSendBroadcastRequest request, StreamObserver<SignedSendBroadcastResponse> responseObserver) {
+		if (Context.current().isCancelled()) {
+			responseObserver.onError(DEADLINE_EXCEEDED.withDescription(DEADLINE_EXCEEDED_DESC).asRuntimeException());
+			return;
+		}
+		try {
+			//Check if there are any Identifiers with replicaID
+			if(!server.requestIdentifiers.containsKey(request.getReplicaId()) ) {
+				Map<String, RequestIdentifier> auxMap = new HashMap<String, RequestIdentifier>();
+				auxMap.put(request.getSequenceNumber(), new RequestIdentifier(request.getReplicaId() , request.getSequenceNumber()));
+				server.requestIdentifiers.put(request.getReplicaId(), auxMap);
+			}
+			//Check if there are any Identifiers with Sequence Number
+			else if (!server.requestIdentifiers.get(request.getReplicaId()).containsKey(request.getSequenceNumber())) {
+
+				server.requestIdentifiers.get(request.getReplicaId()).put(request.getSequenceNumber(), new RequestIdentifier(request.getReplicaId() , request.getSequenceNumber()));
+			}
+
+			//Send first Echo if not previously sent
+			if (request.getBroadcastType() == 0) {
+				//if (!checkRequestSignature(publicKeyBS, request.SignedRequest.getSignature, content.toByteArray(), responseObserver)) return;
+				if (!server.requestIdentifiers.get(request.getReplicaId()).get(request.getSequenceNumber()).hasEchoed() ) {
+					//Enviar echoes  server.send echoes
+					server.requestIdentifiers.get(request.getReplicaId()).get(request.getSequenceNumber()).changeEchoed();
+				}
+			}
+			//Send Ready if number of received Echoes reaches threshold ( N+F/2 )
+			else if (request.getBroadcastType() == 1) {
+
+				if (server.requestIdentifiers.get(request.getReplicaId()).get(request.getSequenceNumber()).receiveEcho(request.getSenderId(), this.faultsToTolerate) ) {
+					server.sendEchoes(request.getWrappedRequest(), request.getReplicaId(), request.getSequenceNumber());
+				}
+			}
+			//Send Ready if number of received Readies reaches threshold (F) or send Deliver if it reaches another threshold (2 * F)
+			else if (request.getBroadcastType() == 2) {
+				int rcvReadyResult = server.requestIdentifiers.get(request.getReplicaId()).get(request.getSequenceNumber()).receiveReady(request.getSenderId(), this.faultsToTolerate);
+				if (rcvReadyResult == 1) {
+					server.sendReadies(request.getWrappedRequest(), request.getReplicaId(), request.getSequenceNumber());
+				}
+				else if (rcvReadyResult == 2) {
+					sendDelivery(request.getWrappedRequest(), request.getReplicaId(), request.getSequenceNumber(), responseObserver);
+				}
+			}
+
+		}
+		catch (Exception e/*CypherFailedException | NoSuchAlgorithmException | InvalidKeySpecException e*/) {
+			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
+		}
+	}
+
+	public SignedReceiveAmountRequest isSignedReceiveAmountRequest (BroadcastRequest req) {
+
+		try {
+			return req.getClientRequest().unpack(SignedReceiveAmountRequest.class);
+		} catch (InvalidProtocolBufferException e) {
+			return null;
+		}
+	}
+
+	public SignedAuditRequest isSignedAuditRequest (BroadcastRequest req) {
+
+		try {
+			return req.getClientRequest().unpack(SignedAuditRequest.class);
+		} catch (InvalidProtocolBufferException e) {
+			return null;
+		}
+	}
+
+	public SignedCheckAccountRequest isSignedCheckAccountRequest (BroadcastRequest req) {
+
+		try {
+			return req.getClientRequest().unpack(SignedCheckAccountRequest.class);
+		} catch (InvalidProtocolBufferException e) {
+			return null;
+		}
+	}
+
+	public SignedSendAmountRequest isSignedSendAmountRequest (BroadcastRequest req) {
+
+		try {
+			return req.getClientRequest().unpack(SignedSendAmountRequest.class);
+		} catch (InvalidProtocolBufferException e) {
+			return null;
+		}
+	}
+
+	public SignedReadForWriteRequest isSignedReadForWriteRequest (BroadcastRequest req) {
+
+		try {
+			return req.getClientRequest().unpack(SignedReadForWriteRequest.class);
+		} catch (InvalidProtocolBufferException e) {
+			return null;
+		}
+	}
+
+	public void sendDelivery(BroadcastRequest payload, String ownerRepID, String sqcNumber, StreamObserver<?> responseObserver) {
+		//MISSING EXECUTION receiveAmount(SignedReceiveAmountRequest request)
+
+		if (isSignedReceiveAmountRequest(payload) != null) {
+			SignedReceiveAmountRequest request = isSignedReceiveAmountRequest(payload);
+			try {
+				// Parse Request & Check its Validity
+				ReceiveAmountRequest content = request.getContent();
+				Transfer transfer = content.getTransfer();
+				ByteString receiverTransferSignature = content.getReceiverTransferSignature();
+				Balance newBalance = content.getNewBalance();
+				ByteString balanceSignature = content.getBalanceSignature();
+				ListSizes senderListSizes = content.getSenderListSizes();
+				ByteString senderSizesSignature = content.getSenderSizesSignature();
+				ListSizes receiverListSizes = content.getReceiverListSizes();
+				ByteString receiverSizesSignature = content.getReceiverSizesSignature();
+				byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
+				if (!checkRequestSignature(transfer.getReceiverKey(), request.getSignature(), content.toByteArray(), responseObserver))
+					return;
+				// Execute Request
+				server.receiveAmount(transfer, receiverTransferSignature, newBalance, balanceSignature, senderListSizes, senderSizesSignature, receiverListSizes, receiverSizesSignature);
+			} catch (Exception e) {
+
+			}
+		}
+		else if(isSignedSendAmountRequest(payload) != null)  {
+			SignedSendAmountRequest request = isSignedSendAmountRequest(payload);
+			try {
+				// Parse Request & Check its Validity
+				SendAmountRequest content = request.getContent();
+				Transfer newTransfer = content.getTransfer();
+				ByteString senderTransferSignature = content.getSenderTransferSignature();
+				Balance newBalance = content.getNewBalance();
+				ByteString balanceSignature = content.getBalanceSignature();
+				ListSizes receiverListSizes = content.getReceiverListSizes();
+				ByteString receiverSizesSignature = content.getReceiverSizesSignature();
+				byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
+				if (!checkRequestSignature(newTransfer.getSenderKey(), request.getSignature(), content.toByteArray(), responseObserver)) return;
+				// Execute Request
+				server.sendAmount(newTransfer, senderTransferSignature, newBalance, balanceSignature, receiverListSizes, receiverSizesSignature);
+			} catch (Exception e) {
+
+			}
+		}
+
+		else if(isSignedAuditRequest(payload) != null) {
+			SignedReadForWriteRequest request = isSignedReadForWriteRequest(payload);
+			try {
+				// Parse request & Check its Validity
+				ReadForWriteRequest content = request.getContent();
+				ByteString senderKeyBS = content.getSenderKey();
+				ByteString receiverKeyBS = content.getReceiverKey();
+				boolean isSender = content.getIsSender();
+				byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
+				if (!checkRequestSignature((isSender)?senderKeyBS:receiverKeyBS, request.getSignature(), content.toByteArray(), responseObserver)) return;
+				// Execute the request
+				BalanceRecord balanceRecord = server.readBalance((isSender)?senderKeyBS:receiverKeyBS);
+				ListSizesRecord senderListSizesRecord = server.readListSizes(senderKeyBS);
+				ListSizesRecord receiverListSizesRecord = server.readListSizes(receiverKeyBS);
+			} catch (Exception e) {
+
+			}
+		}
+
+	}
+
 }

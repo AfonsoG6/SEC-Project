@@ -19,13 +19,13 @@ public class ServerMain {
 		}
 
 		// Check number of arguments
-		if (args.length != 3) {
+		if (args.length != 4) {
 			System.err.println("Invalid number of arguments. Aborting!");
-			System.err.println("Usage: ServerMain <port> <n> <f>");
+			System.err.println("Usage: ServerMain <port> <n> <f> <hostname>");
 			return;
 		}
 
-		int port = Integer.parseInt(args[0]);
+		int basePort = Integer.parseInt(args[0]);
 
 		int f = Integer.parseInt(args[1]); // Byzantine faults to be tolerated
 		if (f <= 0) {
@@ -39,11 +39,12 @@ public class ServerMain {
 			System.err.println("Usage: ServerMain <port> <n> <f>");
 			return;
 		}
+		String serverHostname = args[3];
 		
-		port = port + n;
+		int port = basePort + n;
 
 		// Create Service
-		final ServerServiceImpl service = new ServerServiceImpl(n);
+		final ServerServiceImpl service = new ServerServiceImpl(n, f, serverHostname, basePort);
 		// Setup and start server
 		Server server = ServerBuilder.forPort(port).addService(service).build();
 		server.start();

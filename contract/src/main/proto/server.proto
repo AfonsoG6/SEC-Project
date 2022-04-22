@@ -1,5 +1,6 @@
 syntax = "proto3";
 package pt.tecnico.sec.bftb.grpc;
+import "google/protobuf/any.proto";
 
 //--------------------------------------------Open Account Operation----------------------------------------------------
 
@@ -167,6 +168,27 @@ message GetNonceResponse {
   Puzzle puzzle = 2;
 }
 
+
+//--------------------------------------------Double Echo Broadcast Operations---------------------------------------------------
+
+message BroadcastRequest {
+    google.protobuf.Any clientRequest = 1;
+}
+
+message SignedSendBroadcastRequest {
+  string replicaId = 1;
+  string sequenceNumber = 2;
+  string senderId = 3;
+  int32 broadcastType = 4;
+  BroadcastRequest wrappedRequest = 5;
+  //bytes signature = 6;
+}
+
+message SignedSendBroadcastResponse {
+  string ack = 1;
+  bytes signature = 2;
+}
+
 //--------------------------------------------Data Structures-----------------------------------------------------------
 
 message Transfer {
@@ -192,6 +214,14 @@ message Puzzle {
   bytes puzzleSalt = 2;
 }
 
+message BroadcastType {
+  bool send = 1;
+  bool echo = 2;
+  bool ready = 3;
+}
+
+
+
 //--------------------------------------------Service-------------------------------------------------------------------
 
 service ServerService {
@@ -202,4 +232,5 @@ service ServerService {
   rpc receive_amount(SignedReceiveAmountRequest) returns (SignedReceiveAmountResponse);
   rpc audit(SignedAuditRequest) returns (SignedAuditResponse);
   rpc get_nonce(GetNonceRequest) returns (GetNonceResponse);
+  rpc send_broadcast(SignedSendBroadcastRequest) returns (SignedSendBroadcastResponse);
 }

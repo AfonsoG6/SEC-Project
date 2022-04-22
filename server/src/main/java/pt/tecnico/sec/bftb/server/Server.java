@@ -1,6 +1,10 @@
 package pt.tecnico.sec.bftb.server;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
+import pt.tecnico.sec.bftb.grpc.ServerServiceGrpc;
 import pt.tecnico.sec.bftb.server.exceptions.*;
 import pt.tecnico.sec.bftb.grpc.Server.*;
 
@@ -10,25 +14,46 @@ import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.sql.SQLException;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 public class Server {
 	private static final long TIMESTAMP_TOLERANCE = 5000;
 	private static final int INITIAL_BALANCE = 100;
 	private final SignatureManager signatureManager;
+	private final ConcurrentHashMap<Integer, ServerServiceGrpc.ServerServiceBlockingStub> stubs;
+	private final int faultsToTolerate;
+	private final int numberOfServerReplicas;
+	private int sequenceNumber;
 	SQLiteDatabase db;
 	int replicaID;
+	HashMap<String , Map<String,  RequestIdentifier>> requestIdentifiers = new HashMap<String, Map<String, RequestIdentifier>>();
 
-	public Server(int replicaID) throws ServerInitializationFailedException {
+	public Server(int replicaID, int faultsToTolerate, String serverHostname, int serverBasePort) throws ServerInitializationFailedException {
 		try {
 			Resources.init();
 			this.replicaID = replicaID;
+			this.sequenceNumber = 0;
 			this.signatureManager = new SignatureManager(replicaID);
 			this.db = new SQLiteDatabase(replicaID);
+			this.stubs = new ConcurrentHashMap<>();
+			this.faultsToTolerate = faultsToTolerate;
+			this.numberOfServerReplicas = (3 * faultsToTolerate) + 1;
+			for (int i = 0; i < numberOfServerReplicas; i++) {
+				if (i == replicaID ){continue;}
+				int replicaPort = serverBasePort + i;
+				String replicaURI = String.format("%s:%d", serverHostname, replicaPort);
+				ManagedChannel channel = ManagedChannelBuilder.forTarget(replicaURI).usePlaintext().build();
+				this.stubs.put(i, ServerServiceGrpc.newBlockingStub(channel));
+			}
 		}
 		catch (PrivateKeyLoadingFailedException | DirectoryCreationFailedException | SQLException e) {
 			throw new ServerInitializationFailedException(e);
 		}
 	}
+
+
 
 	public SignatureManager getSignatureManager() {
 		return signatureManager;
@@ -238,4 +263,110 @@ public class Server {
 		if (!db.checkAccountExists(publicKey)) throw new AccountDoesNotExistException();
 		return db.getApprovedTransfersOfAccount(publicKey);
 	}
+
+
+	public void sendFirstBroadcast(BroadcastRequest payload) {
+		for (int ID = 0; ID < numberOfServerReplicas; replicaID++) {
+			ServerServiceGrpc.ServerServiceBlockingStub stub = stubs.get(ID);
+			try {
+				SignedSendBroadcastRequest.Builder signedBuilder = SignedSendBroadcastRequest.newBuilder();
+				signedBuilder.setReplicaId(String.valueOf(this.replicaID));
+				this.sequenceNumber++;
+				signedBuilder.setSequenceNumber(String.valueOf(this.sequenceNumber));
+				signedBuilder.setSenderId(String.valueOf(this.replicaID));
+				signedBuilder.setBroadcastType(1);
+				//signedBuilder.setSignature(1);
+				signedBuilder.setWrappedRequest(payload);
+				SignedSendBroadcastRequest request = signedBuilder.build();
+				stub.withDeadlineAfter(10, TimeUnit.SECONDS).sendBroadcast(request);
+
+			}
+			catch (Exception e) {
+
+			}
+
+		}
+
+	}
+
+	public void sendEchoes(BroadcastRequest payload, String ownerRepID, String sqcNumber) {
+		for (int ID = 0; ID < numberOfServerReplicas; replicaID++) {
+			ServerServiceGrpc.ServerServiceBlockingStub stub = stubs.get(ID);
+			try {
+				SignedSendBroadcastRequest.Builder signedBuilder = SignedSendBroadcastRequest.newBuilder();
+				signedBuilder.setReplicaId(ownerRepID);
+				signedBuilder.setSenderId(String.valueOf(this.replicaID));
+				signedBuilder.setSequenceNumber(sqcNumber);
+				signedBuilder.setBroadcastType(1);
+				//signedBuilder.setSignature(1);
+				signedBuilder.setWrappedRequest(payload);
+				SignedSendBroadcastRequest request = signedBuilder.build();
+				stub.withDeadlineAfter(10, TimeUnit.SECONDS).sendBroadcast(request);
+
+			}
+			catch (Exception e) {
+
+			}
+
+		}
+
+	}
+
+	public void sendReadies(BroadcastRequest payload, String ownerRepID, String sqcNumber) {
+		for (int ID = 0; ID < numberOfServerReplicas; replicaID++) {
+			ServerServiceGrpc.ServerServiceBlockingStub stub = stubs.get(ID);
+			try {
+				SignedSendBroadcastRequest.Builder signedBuilder = SignedSendBroadcastRequest.newBuilder();
+				signedBuilder.setReplicaId(ownerRepID);
+				signedBuilder.setSenderId(String.valueOf(this.replicaID));
+				signedBuilder.setSequenceNumber(sqcNumber);
+				signedBuilder.setBroadcastType(2);
+				//signedBuilder.setSignature(1);
+				signedBuilder.setWrappedRequest(payload);
+				SignedSendBroadcastRequest request = signedBuilder.build();
+				stub.withDeadlineAfter(10, TimeUnit.SECONDS).sendBroadcast(request);
+
+			}
+			catch (Exception e) {
+
+			}
+
+		}
+	}
+
+	/*public SignedReceiveAmountRequest readPayloadMessage (BroadcastRequest req) {
+
+		try {
+			return req.getClientRequest().unpack(SignedReceiveAmountRequest.class);
+		} catch (InvalidProtocolBufferException e) {
+			return null;
+		}
+	}
+
+	public void sendDelivery(BroadcastRequest payload, String ownerRepID, String sqcNumber) {
+		//MISSING EXECUTION receiveAmount(SignedReceiveAmountRequest request)
+
+		if (readPayloadMessage(payload) != null) {
+			SignedReceiveAmountRequest request = readPayloadMessage(payload);
+			try {
+				// Parse Request & Check its Validity
+				ReceiveAmountRequest content = request.getContent();
+				Transfer transfer = content.getTransfer();
+				ByteString receiverTransferSignature = content.getReceiverTransferSignature();
+				Balance newBalance = content.getNewBalance();
+				ByteString balanceSignature = content.getBalanceSignature();
+				ListSizes senderListSizes = content.getSenderListSizes();
+				ByteString senderSizesSignature = content.getSenderSizesSignature();
+				ListSizes receiverListSizes = content.getReceiverListSizes();
+				ByteString receiverSizesSignature = content.getReceiverSizesSignature();
+				byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
+				if (!checkRequestSignature(transfer.getReceiverKey(), request.getSignature(), content.toByteArray(), responseObserver))
+					return;
+				// Execute Request
+				server.receiveAmount(transfer, receiverTransferSignature, newBalance, balanceSignature, senderListSizes, senderSizesSignature, receiverListSizes, receiverSizesSignature);
+			} catch (Exception e) {
+
+			}
+		}
+	}*/
 }
