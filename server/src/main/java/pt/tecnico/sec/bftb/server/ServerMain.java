@@ -34,12 +34,12 @@ public class ServerMain {
 		}
 
 		int n = Integer.parseInt(args[2]); // Replica index
-		if (!((n >= 0) && (n < (3*f + 1)))) {
+		if (!((n >= 0) && (n < (3 * f + 1)))) {
 			System.err.println("Invalid replica index: n >= 0 && n < 3f + 1");
 			System.err.println("Usage: ServerMain <port> <n> <f>");
 			return;
 		}
-		
+
 		port = port + n;
 
 		// Create Service

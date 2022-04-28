@@ -1,6 +1,7 @@
 package pt.tecnico.sec.bftb.client;
 
-import pt.tecnico.sec.bftb.grpc.Server.*;
+import pt.tecnico.sec.bftb.grpc.Server.Balance;
+import pt.tecnico.sec.bftb.grpc.Server.ListSizes;
 
 public class InfoForWrite {
 	private Balance balance;

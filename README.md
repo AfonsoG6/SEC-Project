@@ -51,7 +51,8 @@ mvn clean install -DskipTests -pl <module>
 
 ### Running
 
-***Note:*** To use a different **f** value from the default value of **1**, you must run the script `cert_gen.sh` to generate the certificates for the necessary number of replicas.
+***Note:*** To use a different **f** value from the default value of **1**, you must run the script `cert_gen.sh` to
+generate the certificates for the necessary number of replicas.
 
 You must also add `-Df=<f>` to the end of all the following `exec:java` commands.
 
@@ -65,7 +66,8 @@ mvn exec:java -pl server
 
 You may specify the port number to use, by using the `-Dsvport=<port>` option.
 
-To run multiple replicas of the server, you must use the `-Dn=<number>` option. Where number must be a number between **0 and 3f**.
+To run multiple replicas of the server, you must use the `-Dn=<number>` option. Where number must be a number between **
+0 and 3f**.
 
 #### Running the client
 
@@ -79,14 +81,6 @@ You may specify the server address and port number to use, by using the `-Dsvhos
 options.
 
 *Note:* If the intended hostname contains a `.` (dot), you must use quotes around it (ex: `-Dsvhost="127.0.0.1"`).
-
-### Running the tests
-
-To run the included demo, you must first run the server replicas, and then open a terminal and type:
-
-```shell
-mvn verify
-```
 
 ### Running the demo
 

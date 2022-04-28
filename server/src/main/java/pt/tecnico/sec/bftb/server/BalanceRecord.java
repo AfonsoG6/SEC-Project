@@ -1,7 +1,7 @@
 package pt.tecnico.sec.bftb.server;
 
 import com.google.protobuf.ByteString;
-import pt.tecnico.sec.bftb.grpc.Server.*;
+import pt.tecnico.sec.bftb.grpc.Server.Balance;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;

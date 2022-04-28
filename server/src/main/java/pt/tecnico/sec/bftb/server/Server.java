@@ -1,8 +1,10 @@
 package pt.tecnico.sec.bftb.server;
 
 import com.google.protobuf.ByteString;
+import pt.tecnico.sec.bftb.grpc.Server.Balance;
+import pt.tecnico.sec.bftb.grpc.Server.ListSizes;
+import pt.tecnico.sec.bftb.grpc.Server.Transfer;
 import pt.tecnico.sec.bftb.server.exceptions.*;
-import pt.tecnico.sec.bftb.grpc.Server.*;
 
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
@@ -117,7 +119,8 @@ public class Server {
 		}
 	}
 
-	private PublicKey publicKeyFromByteString(ByteString publicKeyBS) throws NoSuchAlgorithmException, InvalidKeySpecException {
+	private PublicKey publicKeyFromByteString(ByteString publicKeyBS)
+			throws NoSuchAlgorithmException, InvalidKeySpecException {
 		return KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBS.toByteArray()));
 	}
 
@@ -199,7 +202,8 @@ public class Server {
 			BalanceTooLowException {
 		if (amount <= 0) throw new AmountTooLowException();
 		long currentTime = System.currentTimeMillis();
-		if (timestamp > currentTime || timestamp < currentTime - TIMESTAMP_TOLERANCE) throw new InvalidTimestampException();
+		if (timestamp > currentTime || timestamp < currentTime - TIMESTAMP_TOLERANCE)
+			throw new InvalidTimestampException();
 		if (!db.checkAccountExists(senderKeyBS)) throw new AccountDoesNotExistException();
 		if (!db.checkAccountExists(receiverKeyBS)) throw new AccountDoesNotExistException();
 		if (amount >= db.readAccountBalance(senderKeyBS)) throw new BalanceTooLowException();
@@ -231,10 +235,12 @@ public class Server {
 
 	private void verifyReceiveAmount(long timestamp, ByteString senderKeyBS, ByteString receiverKeyBS, int amount)
 			throws SQLException, TransferNotFoundException {
-		if (!db.checkPendingTransferExists(timestamp, senderKeyBS, receiverKeyBS, amount)) throw new TransferNotFoundException();
+		if (!db.checkPendingTransferExists(timestamp, senderKeyBS, receiverKeyBS, amount))
+			throw new TransferNotFoundException();
 	}
 
-	public TransfersRecord getApprovedTransfers(ByteString publicKey) throws AccountDoesNotExistException, SQLException {
+	public TransfersRecord getApprovedTransfers(ByteString publicKey)
+			throws AccountDoesNotExistException, SQLException {
 		if (!db.checkAccountExists(publicKey)) throw new AccountDoesNotExistException();
 		return db.getApprovedTransfersOfAccount(publicKey);
 	}

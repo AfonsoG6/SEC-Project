@@ -1,20 +1,19 @@
 package pt.tecnico.sec.bftb.client;
 
 import com.google.protobuf.ByteString;
-import com.google.protobuf.GeneratedMessageV3;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
 import pt.tecnico.sec.bftb.client.exceptions.*;
 import pt.tecnico.sec.bftb.grpc.Server.*;
 import pt.tecnico.sec.bftb.grpc.ServerServiceGrpc;
-import pt.tecnico.sec.bftb.grpc.ServerServiceGrpc.*;
+import pt.tecnico.sec.bftb.grpc.ServerServiceGrpc.ServerServiceBlockingStub;
 
 import java.nio.ByteBuffer;
 import java.security.*;
+import java.security.cert.CertificateException;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
-import java.security.cert.CertificateException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -38,7 +37,6 @@ public class Client {
 	private final int faultsToTolerate;
 	private final int numberOfServerReplicas;
 	private Puzzle currentPuzzle = null;
-	private final List<GeneratedMessageV3> debugRequestHistory = new LinkedList<>();
 
 	public Client(String serverHostname, int serverBasePort, int faultsToTolerate)
 			throws CertificateException, KeyPairLoadingFailedException, KeyPairGenerationFailedException {
@@ -66,15 +64,6 @@ public class Client {
 		System.out.println("Number of ACKS: " + numAcks + "/" + this.numberOfServerReplicas);
 	}
 
-	public List<GeneratedMessageV3> getDebugRequestHistory() {
-		return debugRequestHistory;
-	}
-
-	public void debugSabotageSignatureManager(String userId)
-			throws KeyPairLoadingFailedException, KeyPairGenerationFailedException {
-		signatureManager.setKeyPair(Resources.getPrivateKeyByUserId(userId), Resources.getPublicKeyByUserId(userId));
-	}
-
 	public void changeUser(String userId) throws KeyPairLoadingFailedException, KeyPairGenerationFailedException {
 		userPrivateKey = Resources.getPrivateKeyByUserId(userId);
 		userPublicKey = Resources.getPublicKeyByUserId(userId);
@@ -86,7 +75,6 @@ public class Client {
 	public long requestNonce(ServerServiceBlockingStub stub) throws NonceRequestFailedException {
 		try {
 			GetNonceRequest request = GetNonceRequest.newBuilder().setPublicKey(ByteString.copyFrom(userPublicKey.getEncoded())).build();
-			debugRequestHistory.add(request);
 			GetNonceResponse response = stub.getNonce(request);
 			byte[] cypheredNonce = response.getCypheredNonce().toByteArray();
 			currentPuzzle = response.getPuzzle();
@@ -128,7 +116,8 @@ public class Client {
 		throw new NoPuzzleSolutionFoundException();
 	}
 
-	private PublicKey publicKeyFromByteString(ByteString publicKeyBS) throws NoSuchAlgorithmException, InvalidKeySpecException {
+	private PublicKey publicKeyFromByteString(ByteString publicKeyBS)
+			throws NoSuchAlgorithmException, InvalidKeySpecException {
 		return KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKeyBS.toByteArray()));
 	}
 
@@ -158,7 +147,8 @@ public class Client {
 	}
 
 	// Open Account
-	public OpenAccountRequest buildOpenAccountRequest(long nonceToServer, int replicaID, Balance initialBalance, byte[] balanceSignature, ListSizes listSizes, byte[] sizesSignature) throws CypherFailedException {
+	public OpenAccountRequest buildOpenAccountRequest(long nonceToServer, int replicaID, Balance initialBalance, byte[] balanceSignature, ListSizes listSizes, byte[] sizesSignature)
+			throws CypherFailedException {
 		ByteString cypheredNonceToServer = getCypheredNonceToServer(nonceToServer, replicaID);
 		OpenAccountRequest.Builder builder = OpenAccountRequest.newBuilder();
 		builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
@@ -168,7 +158,6 @@ public class Client {
 		builder.setListSizes(listSizes);
 		builder.setListSizesSignature(ByteString.copyFrom(sizesSignature));
 		OpenAccountRequest content = builder.build();
-		debugRequestHistory.add(content);
 		return content;
 	}
 
@@ -179,7 +168,6 @@ public class Client {
 		signedBuilder.setContent(content);
 		signedBuilder.setSignature(ByteString.copyFrom(signature));
 		SignedOpenAccountRequest signedRequest = signedBuilder.build();
-		debugRequestHistory.add(signedRequest);
 		return stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).openAccount(signedRequest);
 	}
 
@@ -201,7 +189,8 @@ public class Client {
 					numAcks++;
 				}
 			}
-			catch (StatusRuntimeException | NonceRequestFailedException | CypherFailedException | SignatureVerificationFailedException e) {
+			catch (StatusRuntimeException | NonceRequestFailedException | CypherFailedException |
+			       SignatureVerificationFailedException e) {
 				handleException(e);
 			}
 		}
@@ -215,7 +204,8 @@ public class Client {
 		return builder.build();
 	}
 
-	public ReadForWriteRequest buildReadForWriteRequest(long nonceToServer, int replicaID, ByteString senderKey, ByteString receiverKey, boolean isSender) throws CypherFailedException {
+	public ReadForWriteRequest buildReadForWriteRequest(long nonceToServer, int replicaID, ByteString senderKey, ByteString receiverKey, boolean isSender)
+			throws CypherFailedException {
 		ByteString cypheredNonceToServer = getCypheredNonceToServer(nonceToServer, replicaID);
 		ReadForWriteRequest.Builder builder = ReadForWriteRequest.newBuilder();
 		builder.setSenderKey(senderKey);
@@ -223,7 +213,6 @@ public class Client {
 		builder.setIsSender(isSender);
 		builder.setCypheredNonce(cypheredNonceToServer);
 		ReadForWriteRequest content = builder.build();
-		debugRequestHistory.add(content);
 		return content;
 	}
 
@@ -234,11 +223,11 @@ public class Client {
 		signedBuilder.setContent(content);
 		signedBuilder.setSignature(ByteString.copyFrom(signature));
 		SignedReadForWriteRequest signedRequest = signedBuilder.build();
-		debugRequestHistory.add(signedRequest);
 		return stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).readForWrite(signedRequest);
 	}
 
-	public InfoForWrite readForWrite(ByteString senderKey, ByteString receiverKey, boolean isSender) throws NotEnoughValidResponsesException {
+	public InfoForWrite readForWrite(ByteString senderKey, ByteString receiverKey, boolean isSender)
+			throws NotEnoughValidResponsesException {
 		long nonceToServer = this.signatureManager.generateNonce(); // We use the same nonce for all server replicas
 		List<ReadForWriteResponse> readList = new ArrayList<>();
 		for (int replicaID = 0; replicaID < numberOfServerReplicas; replicaID++) {
@@ -286,7 +275,8 @@ public class Client {
 		return mostRecentBalance;
 	}
 
-	private ListSizes getMostRecentListSizes(List<ReadForWriteResponse> readList, int mode) throws NotEnoughValidResponsesException {
+	private ListSizes getMostRecentListSizes(List<ReadForWriteResponse> readList, int mode)
+			throws NotEnoughValidResponsesException {
 		int highestWts = -1;
 		ListSizes mostRecentListSizes = null;
 		for (ReadForWriteResponse response : readList) {
@@ -313,7 +303,6 @@ public class Client {
 		builder.setReceiverSizesSignature(ByteString.copyFrom(receiverSizesSignature));
 		builder.setCypheredNonce(cypheredNonceToServer);
 		SendAmountRequest content = builder.build();
-		debugRequestHistory.add(content);
 		return content;
 	}
 
@@ -324,7 +313,6 @@ public class Client {
 		signedBuilder.setContent(content);
 		signedBuilder.setSignature(ByteString.copyFrom(signature));
 		SignedSendAmountRequest signedRequest = signedBuilder.build();
-		debugRequestHistory.add(signedRequest);
 		return stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).sendAmount(signedRequest);
 	}
 
@@ -418,14 +406,14 @@ public class Client {
 		return builder.toString();
 	}
 
-	public CheckAccountRequest buildCheckAccountRequest(long nonceToServer, int replicaID, long puzzleSolution) throws CypherFailedException {
+	public CheckAccountRequest buildCheckAccountRequest(long nonceToServer, int replicaID, long puzzleSolution)
+			throws CypherFailedException {
 		ByteString cypheredNonceToServer = getCypheredNonceToServer(nonceToServer, replicaID);
 		CheckAccountRequest.Builder builder = CheckAccountRequest.newBuilder();
 		builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
 		builder.setCypheredNonce(cypheredNonceToServer);
 		builder.setPuzzleSolution(puzzleSolution);
 		CheckAccountRequest content = builder.build();
-		debugRequestHistory.add(content);
 		return content;
 	}
 
@@ -436,7 +424,6 @@ public class Client {
 		signedBuilder.setContent(content);
 		signedBuilder.setSignature(ByteString.copyFrom(signature));
 		SignedCheckAccountRequest signedRequest = signedBuilder.build();
-		debugRequestHistory.add(signedRequest);
 		return stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).checkAccount(signedRequest);
 	}
 
@@ -490,7 +477,8 @@ public class Client {
 		return mostRecentBalance.getBalance().getValue();
 	}
 
-	private List<Transfer> getMostRecentPendingTransfersList(List<CheckAccountResponse> readList) throws NotEnoughValidResponsesException {
+	private List<Transfer> getMostRecentPendingTransfersList(List<CheckAccountResponse> readList)
+			throws NotEnoughValidResponsesException {
 		int highestWts = -1;
 		CheckAccountResponse bestResponse = null;
 		for (CheckAccountResponse response : readList) {
@@ -506,8 +494,10 @@ public class Client {
 
 	public Transfer getTransferFromNumber(int transferNum)
 			throws InvalidTransferNumberException {
-		if (lastCheckAccountTransfers == null) throw new InvalidTransferNumberException("No check account was performed, cannot select transfer");
-		if (transferNum < 0 || transferNum >= lastCheckAccountTransfers.size()) throw new InvalidTransferNumberException();
+		if (lastCheckAccountTransfers == null)
+			throw new InvalidTransferNumberException("No check account was performed, cannot select transfer");
+		if (transferNum < 0 || transferNum >= lastCheckAccountTransfers.size())
+			throw new InvalidTransferNumberException();
 		return lastCheckAccountTransfers.get(transferNum);
 	}
 
@@ -527,7 +517,6 @@ public class Client {
 		builder.setReceiverSizesSignature(ByteString.copyFrom(receiverSizesSignature));
 		builder.setCypheredNonce(cypheredNonceToServer);
 		ReceiveAmountRequest content = builder.build();
-		debugRequestHistory.add(content);
 		return content;
 	}
 
@@ -538,7 +527,6 @@ public class Client {
 		signedBuilder.setContent(content);
 		signedBuilder.setSignature(ByteString.copyFrom(signature));
 		SignedReceiveAmountRequest signedRequest = signedBuilder.build();
-		debugRequestHistory.add(signedRequest);
 		return stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).receiveAmount(signedRequest);
 	}
 
@@ -583,14 +571,14 @@ public class Client {
 	}
 
 	// Audit
-	public AuditRequest buildAuditRequest(long nonceToServer, int replicaID, long puzzleSolution) throws CypherFailedException {
+	public AuditRequest buildAuditRequest(long nonceToServer, int replicaID, long puzzleSolution)
+			throws CypherFailedException {
 		ByteString cypheredNonceToServer = getCypheredNonceToServer(nonceToServer, replicaID);
 		AuditRequest.Builder builder = AuditRequest.newBuilder();
 		builder.setPublicKey(ByteString.copyFrom(this.userPublicKey.getEncoded()));
 		builder.setCypheredNonce(cypheredNonceToServer);
 		builder.setPuzzleSolution(puzzleSolution);
 		AuditRequest content = builder.build();
-		debugRequestHistory.add(content);
 		return content;
 	}
 
@@ -601,7 +589,6 @@ public class Client {
 		signedBuilder.setContent(content);
 		signedBuilder.setSignature(ByteString.copyFrom(signature));
 		SignedAuditRequest signedRequest = signedBuilder.build();
-		debugRequestHistory.add(signedRequest);
 		return stub.withDeadlineAfter(DEADLINE_SEC, TimeUnit.SECONDS).audit(signedRequest);
 	}
 
@@ -641,7 +628,8 @@ public class Client {
 		}
 	}
 
-	private List<Transfer> getMostRecentApprovedTransfersList(List<AuditResponse> readList) throws NotEnoughValidResponsesException {
+	private List<Transfer> getMostRecentApprovedTransfersList(List<AuditResponse> readList)
+			throws NotEnoughValidResponsesException {
 		int highestWts = -1;
 		AuditResponse bestResponse = null;
 		for (AuditResponse response : readList) {
@@ -664,7 +652,8 @@ public class Client {
 		for (int i = 0; i < expectedSize; i++) {
 			Transfer transfer = transfers.get(i);
 			byte[] senderSignature = senderSignatures.get(i).toByteArray();
-			if (!this.signatureManager.isTransferSignatureValid(publicKeyFromByteString(transfer.getSenderKey()), senderSignature, transfer)) return false;
+			if (!this.signatureManager.isTransferSignatureValid(publicKeyFromByteString(transfer.getSenderKey()), senderSignature, transfer))
+				return false;
 			byte[] transferHash = getTransferHash(transfer);
 			if (transferHashes.contains(transferHash)) return false;
 			transferHashes.add(transferHash);
@@ -683,8 +672,10 @@ public class Client {
 			Transfer transfer = transfers.get(i);
 			byte[] senderSignature = senderSignatures.get(i).toByteArray();
 			byte[] receiverSignature = receiverSignatures.get(i).toByteArray();
-			if (!this.signatureManager.isTransferSignatureValid(publicKeyFromByteString(transfer.getSenderKey()), senderSignature, transfer)) return false;
-			if (!this.signatureManager.isTransferSignatureValid(publicKeyFromByteString(transfer.getReceiverKey()), receiverSignature, transfer)) return false;
+			if (!this.signatureManager.isTransferSignatureValid(publicKeyFromByteString(transfer.getSenderKey()), senderSignature, transfer))
+				return false;
+			if (!this.signatureManager.isTransferSignatureValid(publicKeyFromByteString(transfer.getReceiverKey()), receiverSignature, transfer))
+				return false;
 			byte[] transferHash = getTransferHash(transfer);
 			if (transferHashes.contains(transferHash)) return false;
 			transferHashes.add(transferHash);

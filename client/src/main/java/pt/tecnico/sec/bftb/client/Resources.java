@@ -44,7 +44,8 @@ public class Resources {
 				}
 			}
 		}
-		catch (URISyntaxException | KeyStoreException | IOException | NoSuchAlgorithmException | CertificateException e) {
+		catch (URISyntaxException | KeyStoreException | IOException | NoSuchAlgorithmException |
+		       CertificateException e) {
 			e.printStackTrace();
 		}
 	}
@@ -80,7 +81,8 @@ public class Resources {
 			keyStore = getKeyStore();
 			return (PrivateKey) keyStore.getKey(userId, KEYSTORE_PWD.toCharArray());
 		}
-		catch (NoSuchAlgorithmException | LoadKeyStoreFailedException | KeyStoreException | UnrecoverableKeyException e) {
+		catch (NoSuchAlgorithmException | LoadKeyStoreFailedException | KeyStoreException |
+		       UnrecoverableKeyException e) {
 			throw new KeyPairLoadingFailedException(e);
 		}
 	}
@@ -96,11 +98,12 @@ public class Resources {
 			KeyStore keyStore = getKeyStore();
 
 			keyStore.setKeyEntry(userId, privateKey, KEYSTORE_PWD.toCharArray(),
-					new Certificate[] {generateSelfSignedCertificate(privateKey, publicKey)});
+					new Certificate[]{generateSelfSignedCertificate(privateKey, publicKey)});
 
 			saveKeyStore(keyStore);
 		}
-		catch (NullPointerException | NoSuchAlgorithmException | KeyStoreException | LoadKeyStoreFailedException | SaveKeyStoreFailedException | CertificateGenerationFailedException e) {
+		catch (NullPointerException | NoSuchAlgorithmException | KeyStoreException | LoadKeyStoreFailedException |
+		       SaveKeyStoreFailedException | CertificateGenerationFailedException e) {
 			throw new KeyPairGenerationFailedException(e);
 		}
 	}
@@ -114,7 +117,8 @@ public class Resources {
 			}
 			return keyStore;
 		}
-		catch (IOException | KeyStoreException | NoSuchAlgorithmException | CertificateException | URISyntaxException e) {
+		catch (IOException | KeyStoreException | NoSuchAlgorithmException | CertificateException |
+		       URISyntaxException e) {
 			throw new LoadKeyStoreFailedException(e);
 		}
 	}
@@ -126,7 +130,8 @@ public class Resources {
 				keyStore.store(fos, KEYSTORE_PWD.toCharArray());
 			}
 		}
-		catch (IOException | KeyStoreException | NoSuchAlgorithmException | CertificateException | URISyntaxException e) {
+		catch (IOException | KeyStoreException | NoSuchAlgorithmException | CertificateException |
+		       URISyntaxException e) {
 			throw new SaveKeyStoreFailedException(e);
 		}
 	}
@@ -144,7 +149,7 @@ public class Resources {
 			throws CertificateGenerationFailedException {
 		try {
 			// Generate self-signed certificate
-			X509V3CertificateGenerator v3CertGen =  new X509V3CertificateGenerator();
+			X509V3CertificateGenerator v3CertGen = new X509V3CertificateGenerator();
 			v3CertGen.setSerialNumber(BigInteger.valueOf(System.currentTimeMillis()));
 			v3CertGen.setIssuerDN(new X509Principal(CERTIFICATE_DN));
 			v3CertGen.setNotBefore(new Date(System.currentTimeMillis() - (1000L * 60 * 60 * 24)));

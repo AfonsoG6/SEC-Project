@@ -1,7 +1,10 @@
 package pt.tecnico.sec.bftb.server;
 
 import com.google.protobuf.ByteString;
-import pt.tecnico.sec.bftb.grpc.Server.*;
+import pt.tecnico.sec.bftb.grpc.Server.Balance;
+import pt.tecnico.sec.bftb.grpc.Server.ListSizes;
+import pt.tecnico.sec.bftb.grpc.Server.Puzzle;
+import pt.tecnico.sec.bftb.grpc.Server.Transfer;
 import pt.tecnico.sec.bftb.server.exceptions.AccountDoesNotHavePuzzleException;
 import pt.tecnico.sec.bftb.server.exceptions.CypherFailedException;
 import pt.tecnico.sec.bftb.server.exceptions.PrivateKeyLoadingFailedException;
@@ -43,7 +46,8 @@ public class SignatureManager {
 			byte[] nonceBytes = ByteBuffer.allocate(Long.BYTES).putLong(nonce).array();
 			return cipher.doFinal(nonceBytes);
 		}
-		catch (IllegalBlockSizeException | BadPaddingException | InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException e) {
+		catch (IllegalBlockSizeException | BadPaddingException | InvalidKeyException | NoSuchAlgorithmException |
+		       NoSuchPaddingException e) {
 			throw new CypherFailedException(e);
 		}
 	}
@@ -55,7 +59,8 @@ public class SignatureManager {
 			byte[] nonceBytes = cipher.doFinal(cypheredNonce);
 			return ByteBuffer.wrap(nonceBytes).getLong();
 		}
-		catch (IllegalBlockSizeException | BadPaddingException | InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException e) {
+		catch (IllegalBlockSizeException | BadPaddingException | InvalidKeyException | NoSuchAlgorithmException |
+		       NoSuchPaddingException e) {
 			throw new CypherFailedException(e);
 		}
 	}
@@ -91,7 +96,8 @@ public class SignatureManager {
 			}
 			else return true;
 		}
-		catch (NoSuchAlgorithmException | InvalidKeyException | BadPaddingException | IllegalBlockSizeException | NoSuchPaddingException | BufferUnderflowException e) {
+		catch (NoSuchAlgorithmException | InvalidKeyException | BadPaddingException | IllegalBlockSizeException |
+		       NoSuchPaddingException | BufferUnderflowException e) {
 			throw new SignatureVerificationFailedException(e);
 		}
 	}
@@ -113,7 +119,8 @@ public class SignatureManager {
 			// Compare the received hash with the expected one
 			return Arrays.equals(expectedHash, receivedHash);
 		}
-		catch (NoSuchAlgorithmException | InvalidKeyException | BadPaddingException | IllegalBlockSizeException | NoSuchPaddingException | BufferUnderflowException e) {
+		catch (NoSuchAlgorithmException | InvalidKeyException | BadPaddingException | IllegalBlockSizeException |
+		       NoSuchPaddingException | BufferUnderflowException e) {
 			throw new SignatureVerificationFailedException(e);
 		}
 	}
@@ -144,7 +151,8 @@ public class SignatureManager {
 			cipher.init(Cipher.ENCRYPT_MODE, this.privateKey);
 			return cipher.doFinal(hash);
 		}
-		catch (IllegalBlockSizeException | BadPaddingException | InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException e) {
+		catch (IllegalBlockSizeException | BadPaddingException | InvalidKeyException | NoSuchAlgorithmException |
+		       NoSuchPaddingException e) {
 			throw new CypherFailedException(e);
 		}
 	}

@@ -1,11 +1,9 @@
 package pt.tecnico.sec.bftb.client;
 
-import io.grpc.StatusRuntimeException;
 import pt.tecnico.sec.bftb.client.exceptions.KeyPairGenerationFailedException;
 import pt.tecnico.sec.bftb.client.exceptions.KeyPairLoadingFailedException;
 
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.cert.CertificateException;
@@ -90,8 +88,7 @@ public class AppMain {
 
 
 	// Returns true if the App should exit
-	private static boolean parseAndExecCommand(String line)
-			throws KeyPairLoadingFailedException, KeyPairGenerationFailedException {
+	private static boolean parseAndExecCommand(String line) {
 		try {
 			String[] tokens = line.split(" ");
 			switch (tokens[0]) {

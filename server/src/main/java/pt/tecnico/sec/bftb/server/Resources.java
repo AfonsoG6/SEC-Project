@@ -1,8 +1,10 @@
 package pt.tecnico.sec.bftb.server;
 
-import pt.tecnico.sec.bftb.server.exceptions.*;
+import pt.tecnico.sec.bftb.server.exceptions.DirectoryCreationFailedException;
+import pt.tecnico.sec.bftb.server.exceptions.PrivateKeyLoadingFailedException;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
@@ -52,7 +54,8 @@ public class Resources {
 			if (privateKey == null) throw new PrivateKeyLoadingFailedException("Private key not found in keystore");
 			return privateKey;
 		}
-		catch (KeyStoreException | UnrecoverableKeyException | CertificateException | IOException | NoSuchAlgorithmException e) {
+		catch (KeyStoreException | UnrecoverableKeyException | CertificateException | IOException |
+		       NoSuchAlgorithmException e) {
 			throw new PrivateKeyLoadingFailedException(e);
 		}
 	}

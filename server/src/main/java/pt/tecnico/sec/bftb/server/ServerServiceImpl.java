@@ -3,9 +3,9 @@ package pt.tecnico.sec.bftb.server;
 import com.google.protobuf.ByteString;
 import io.grpc.Context;
 import io.grpc.stub.StreamObserver;
-import pt.tecnico.sec.bftb.server.exceptions.*;
 import pt.tecnico.sec.bftb.grpc.Server.*;
 import pt.tecnico.sec.bftb.grpc.ServerServiceGrpc;
+import pt.tecnico.sec.bftb.server.exceptions.*;
 
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
@@ -56,7 +56,8 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			ListSizes listSizes = content.getListSizes();
 			ByteString listSizesSignature = content.getListSizesSignature();
 			byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
-			if (!checkRequestSignature(publicKeyBS, request.getSignature(), content.toByteArray(), responseObserver)) return;
+			if (!checkRequestSignature(publicKeyBS, request.getSignature(), content.toByteArray(), responseObserver))
+				return;
 			// Execute the request
 			server.openAccount(publicKeyBS, initialBalance, balanceSignature, listSizes, listSizesSignature);
 			// Build Signed Response
@@ -69,7 +70,8 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			responseObserver.onNext(signedResponse);
 			responseObserver.onCompleted();
 		}
-		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException | SQLException e) {
+		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException |
+		       SignatureVerificationFailedException | SQLException e) {
 			e.printStackTrace();
 			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
 		}
@@ -96,9 +98,10 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			ByteString receiverKeyBS = content.getReceiverKey();
 			boolean isSender = content.getIsSender();
 			byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
-			if (!checkRequestSignature((isSender)?senderKeyBS:receiverKeyBS, request.getSignature(), content.toByteArray(), responseObserver)) return;
+			if (!checkRequestSignature((isSender) ? senderKeyBS : receiverKeyBS, request.getSignature(), content.toByteArray(), responseObserver))
+				return;
 			// Execute the request
-			BalanceRecord balanceRecord = server.readBalance((isSender)?senderKeyBS:receiverKeyBS);
+			BalanceRecord balanceRecord = server.readBalance((isSender) ? senderKeyBS : receiverKeyBS);
 			ListSizesRecord senderListSizesRecord = server.readListSizes(senderKeyBS);
 			ListSizesRecord receiverListSizesRecord = server.readListSizes(receiverKeyBS);
 			// Build Response
@@ -123,7 +126,8 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			responseObserver.onNext(signedResponse);
 			responseObserver.onCompleted();
 		}
-		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException | SQLException e) {
+		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException |
+		       SignatureVerificationFailedException | SQLException e) {
 			e.printStackTrace();
 			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
 		}
@@ -149,7 +153,8 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			ListSizes receiverListSizes = content.getReceiverListSizes();
 			ByteString receiverSizesSignature = content.getReceiverSizesSignature();
 			byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
-			if (!checkRequestSignature(newTransfer.getSenderKey(), request.getSignature(), content.toByteArray(), responseObserver)) return;
+			if (!checkRequestSignature(newTransfer.getSenderKey(), request.getSignature(), content.toByteArray(), responseObserver))
+				return;
 			// Execute Request
 			server.sendAmount(newTransfer, senderTransferSignature, newBalance, balanceSignature, receiverListSizes, receiverSizesSignature);
 			// Build Signed Response
@@ -162,7 +167,8 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			responseObserver.onNext(signedResponse);
 			responseObserver.onCompleted();
 		}
-		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException | SQLException e) {
+		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException |
+		       SignatureVerificationFailedException | SQLException e) {
 			e.printStackTrace();
 			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
 		}
@@ -191,7 +197,8 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 				return;
 			}
 			byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
-			if (!checkRequestSignature(publicKeyBS, request.getSignature(), content.toByteArray(), responseObserver)) return;
+			if (!checkRequestSignature(publicKeyBS, request.getSignature(), content.toByteArray(), responseObserver))
+				return;
 			// Execute the request
 			BalanceRecord balanceRecord = server.readBalance(publicKeyBS);
 			Balance balance = balanceRecord.getBalance();
@@ -253,7 +260,8 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			ListSizes receiverListSizes = content.getReceiverListSizes();
 			ByteString receiverSizesSignature = content.getReceiverSizesSignature();
 			byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
-			if (!checkRequestSignature(transfer.getReceiverKey(), request.getSignature(), content.toByteArray(), responseObserver)) return;
+			if (!checkRequestSignature(transfer.getReceiverKey(), request.getSignature(), content.toByteArray(), responseObserver))
+				return;
 			// Execute Request
 			server.receiveAmount(transfer, receiverTransferSignature, newBalance, balanceSignature, senderListSizes, senderSizesSignature, receiverListSizes, receiverSizesSignature);
 			// Build Signed Response
@@ -266,7 +274,8 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 			responseObserver.onNext(signedResponse);
 			responseObserver.onCompleted();
 		}
-		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException | SignatureVerificationFailedException | SQLException e) {
+		catch (CypherFailedException | InvalidKeySpecException | NoSuchAlgorithmException |
+		       SignatureVerificationFailedException | SQLException e) {
 			e.printStackTrace();
 			responseObserver.onError(INTERNAL.withDescription(e.getMessage()).asRuntimeException());
 		}
@@ -294,7 +303,8 @@ public class ServerServiceImpl extends ServerServiceGrpc.ServerServiceImplBase {
 				return;
 			}
 			byte[] cypheredNonceToServer = content.getCypheredNonce().toByteArray();
-			if (!checkRequestSignature(publicKeyBS, request.getSignature(), content.toByteArray(), responseObserver)) return;
+			if (!checkRequestSignature(publicKeyBS, request.getSignature(), content.toByteArray(), responseObserver))
+				return;
 			// Execute the request
 			TransfersRecord transfersRecord = server.getApprovedTransfers(publicKeyBS);
 			List<Transfer> approvedTransfers = transfersRecord.getTransfers();
